@@ -1,0 +1,11 @@
+.env
+.env.local
+*.pem
+*.key
+aws-credentials*
+__pycache__/
+*.pyc
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.DS_Store
