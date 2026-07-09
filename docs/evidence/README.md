@@ -14,9 +14,9 @@ This folder lists implementation evidence collected during the cloud security pr
 | Lambda environment variables configured | Completed |
 | Valid upload initiation test passed | Completed |
 | S3 object uploaded through pre-signed URL | Completed |
-| Invalid file type rejected | Pending |
-| Oversized file rejected | Pending |
-| Extension/content-type mismatch rejected | Pending |
+| Invalid file type rejected | Completed |
+| Oversized file rejected | Completed |
+| Extension/content-type mismatch rejected | Completed |
 | CloudWatch safe log generated | Pending |
 
 ## Successful Upload Initiation Test
@@ -39,7 +39,6 @@ The generated pre-signed URL was tested using Postman.
 
 Test configuration:
 
-```text
 Method: PUT
 Header: Content-Type = application/pdf
 Body: binary PDF file
@@ -66,3 +65,14 @@ result :
     "createdAt": "timestamp"
   }
 }
+## Upload Validation Rejection Tests
+
+The Lambda upload initiation function was tested against invalid upload metadata to confirm that unsupported or unsafe files are rejected before an S3 upload URL is generated.
+
+| Test Case | Expected Result | Status |
+|---|---|---|
+| Unsupported file type: `application/x-msdownload` | `400` error response | Passed |
+| Oversized file greater than 10 MB | `400` error response | Passed |
+| Extension/content-type mismatch | `400` error response | Passed |
+
+These tests confirm that the upload API does not create pre-signed S3 URLs for unsupported, oversized, or inconsistent file metadata.
