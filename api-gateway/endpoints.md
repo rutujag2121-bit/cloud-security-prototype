@@ -1,56 +1,103 @@
 # API Gateway Endpoints
 
 ## API Name
-document-processing-rest-api
+
+`document-processing-rest-api`
 
 ## Stage
-Dev
 
-## Implemented Endpoint
+`Dev`
 
-### POST /upload
+---
 
-Purpose:
-Accepts document metadata for receipt/invoice upload and creates an initial document-processing job.
+## Endpoint 1: POST /upload
 
-Request body:
+### Purpose
+
+Initial prototype endpoint used to validate receipt/invoice upload metadata and create a UUID-based processing job.
+
+### Current Status
+
+This endpoint is retained as the first prototype version. The stronger design is now `POST /upload/initiate`, which creates a secure S3 upload destination.
+
+---
+
+## Endpoint 2: POST /upload/initiate
+
+### Purpose
+
+Creates a secure upload initiation flow for receipt/invoice documents. The endpoint validates upload metadata, creates a document ID, generates a structured S3 object key, and returns a pre-signed S3 PUT URL.
+
+### Request Body
 
 ```json
 {
   "fileName": "receipt1.pdf",
   "contentType": "application/pdf",
-  "fileSizeBytes": 250000
-}
-
-
-Expected response:
-
-When tested through API Gateway, the method returns HTTP `200` at the API Gateway execution level because API Gateway successfully invokes the Lambda function. Inside the response body, the Lambda returns `statusCode: 201`, which means the upload request was accepted and a new document-processing job was created.
-
-```json
-{
-  "statusCode": 201,
-  "headers": {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "POST,OPTIONS"
-  },
-  "body": "{\"message\": \"Document upload request accepted\", \"jobId\": \"generated-uuid\", \"fileName\": \"receipt1.pdf\", \"contentType\": \"application/pdf\", \"fileSizeBytes\": 250000, \"status\": \"received\", \"receivedAt\": \"timestamp\"}"
+  "fileSizeBytes": 250000,
+  "userId": "test-user-1",
+  "companyId": "capisso-test"
 }
 ```
 
-Example successful output:
+### Successful Response
 
 ```json
 {
-  "statusCode": 201,
-  "headers": {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "POST,OPTIONS"
+  "message": "Secure upload URL created",
+  "documentId": "generated-uuid",
+  "jobId": "generated-uuid",
+  "status": "upload_url_created",
+  "bucket": "<S3_BUCKET_NAME>",
+  "objectKey": "raw/capisso-test/test-user-1/generated-uuid/receipt1.pdf",
+  "uploadUrl": "pre-signed-url-not-committed-to-github",
+  "uploadMethod": "PUT",
+  "requiredHeaders": {
+    "Content-Type": "application/pdf"
   },
-  "body": "{\"message\": \"Document upload request accepted\", \"jobId\": \"44fc7da4-b198-43e6-b8eb-8cc228cd9cb6\", \"fileName\": \"receipt1.pdf\", \"contentType\": \"application/pdf\", \"fileSizeBytes\": 250000, \"status\": \"received\", \"receivedAt\": \"2026-06-23T16:07:21.533069Z\"}"
+  "expiresInSeconds": 900,
+  "traceId": "aws-request-id",
+  "createdAt": "timestamp"
 }
 ```
+
+### Rejection Cases
+
+| Case | Expected Response |
+|---|---|
+| Missing `fileName` | 400 error |
+| Missing `contentType` | 400 error |
+| Missing `fileSizeBytes` | 400 error |
+| Unsupported file type | 400 error |
+| File over 10 MB | 400 error |
+| Extension/content-type mismatch | 400 error |
+| Invalid JSON body | 400 error |
+
+### Security Controls
+
+| Control | Implementation |
+|---|---|
+| File type validation | Allows PDF, JPEG, and PNG only |
+| File size validation | Rejects files over 10 MB |
+| Filename protection | Sanitizes file names before object key creation |
+| Upload destination control | Generates S3 object key under the `raw/` prefix |
+| CORS | Uses allowed origins from Lambda environment variable |
+| Traceability | Returns `documentId`, `jobId`, and `traceId` |
+| PII-aware logging | Logs metadata only, not document contents |
+
+### Upload Flow
+
+```text
+Client
+→ POST /upload/initiate
+→ API Gateway
+→ Upload Lambda
+→ Validate metadata
+→ Generate documentId and S3 objectKey
+→ Return pre-signed S3 PUT URL
+→ Client uploads file directly to S3
+```
+
+### Important Note
+
+Pre-signed URLs must not be committed to GitHub because they temporarily authorize uploads to S3.
