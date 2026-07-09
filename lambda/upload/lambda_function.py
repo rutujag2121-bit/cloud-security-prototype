@@ -3,6 +3,8 @@ import os
 import re
 import uuid
 import logging
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 
 import boto3
@@ -16,6 +18,9 @@ BUCKET_NAME = os.environ["BUCKET_NAME"]
 UPLOAD_PREFIX = os.environ.get("UPLOAD_PREFIX", "raw")
 MAX_FILE_SIZE_BYTES = int(os.environ.get("MAX_FILE_SIZE_BYTES", "10485760"))
 PRESIGNED_URL_EXPIRES_SECONDS = int(os.environ.get("PRESIGNED_URL_EXPIRES_SECONDS", "900"))
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 ALLOWED_TYPES = {
     "application/pdf": [".pdf"],
@@ -103,6 +108,82 @@ def validate_request(body):
     return True, None
 
 
+def supabase_insert(table_name, payload):
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise RuntimeError("Supabase configuration is missing")
+
+    url = f"{SUPABASE_URL}/rest/v1/{table_name}"
+
+    request = urllib.request.Request(
+        url=url,
+        data=json.dumps(payload).encode("utf-8"),
+        method="POST"
+    )
+
+    request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
+    request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
+    request.add_header("Content-Type", "application/json")
+    request.add_header("Prefer", "return=minimal")
+
+    try:
+        with urllib.request.urlopen(request, timeout=8) as result:
+            if result.status < 200 or result.status >= 300:
+                raise RuntimeError(f"Supabase insert failed with status {result.status}")
+
+    except urllib.error.HTTPError as error:
+        error_body = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Supabase insert failed for {table_name}: {error.code} {error_body[:500]}"
+        )
+
+    except urllib.error.URLError as error:
+        raise RuntimeError(
+            f"Supabase connection failed for {table_name}: {str(error.reason)}"
+        )
+
+
+def create_document_record(
+    document_id,
+    user_id,
+    company_id,
+    safe_file_name,
+    content_type,
+    file_size,
+    object_key,
+    trace_id
+):
+    document_payload = {
+        "id": document_id,
+        "user_id": user_id,
+        "company_id": company_id,
+        "file_name": safe_file_name,
+        "content_type": content_type,
+        "file_size_bytes": file_size,
+        "s3_bucket": BUCKET_NAME,
+        "s3_object_key": object_key,
+        "status": "upload_url_created",
+        "trace_id": trace_id
+    }
+
+    audit_payload = {
+        "document_id": document_id,
+        "user_id": user_id,
+        "company_id": company_id,
+        "action": "UPLOAD_INITIATED",
+        "resource": object_key,
+        "result": "SUCCESS",
+        "trace_id": trace_id,
+        "details": {
+            "contentType": content_type,
+            "fileSizeBytes": file_size,
+            "storagePrefix": UPLOAD_PREFIX
+        }
+    }
+
+    supabase_insert("documents", document_payload)
+    supabase_insert("audit_logs", audit_payload)
+
+
 def lambda_handler(event, context):
     trace_id = getattr(context, "aws_request_id", str(uuid.uuid4()))
 
@@ -158,6 +239,17 @@ def lambda_handler(event, context):
             HttpMethod="PUT"
         )
 
+        create_document_record(
+            document_id=document_id,
+            user_id=user_id,
+            company_id=company_id,
+            safe_file_name=safe_file_name,
+            content_type=content_type,
+            file_size=file_size,
+            object_key=object_key,
+            trace_id=trace_id
+        )
+
         created_at = datetime.now(timezone.utc).isoformat()
 
         logger.info(json.dumps({
@@ -168,6 +260,7 @@ def lambda_handler(event, context):
             "contentType": content_type,
             "fileSizeBytes": file_size,
             "objectKey": object_key,
+            "databaseWrite": "completed",
             "createdAt": created_at
         }))
 
@@ -183,6 +276,10 @@ def lambda_handler(event, context):
             "requiredHeaders": {
                 "Content-Type": content_type
             },
+            "database": {
+                "documentRecord": "created",
+                "auditRecord": "created"
+            },
             "expiresInSeconds": PRESIGNED_URL_EXPIRES_SECONDS,
             "traceId": trace_id,
             "createdAt": created_at
@@ -193,11 +290,11 @@ def lambda_handler(event, context):
             "traceId": trace_id,
             "stage": "upload_initiate",
             "status": "failed",
-            "errorType": type(error).__name__
+            "errorType": type(error).__name__,
+            "errorMessage": str(error)[:300]
         }))
 
         return response(event, 500, {
             "error": "Internal server error while creating upload URL",
             "traceId": trace_id
         })
-
