@@ -1,0 +1,7 @@
+{
+  "httpMethod": "POST",
+  "headers": {
+    "Origin": "http://localhost:3000"
+  },
+  "body": "{\"fileName\":\"malware.exe\",\"contentType\":\"application/x-msdownload\",\"fileSizeBytes\":1000}"
+}
