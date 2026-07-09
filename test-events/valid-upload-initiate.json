@@ -1,0 +1,7 @@
+{
+  "httpMethod": "POST",
+  "headers": {
+    "Origin": "http://localhost:3000"
+  },
+  "body": "{\"fileName\":\"receipt1.pdf\",\"contentType\":\"application/pdf\",\"fileSizeBytes\":250000,\"userId\":\"test-user-1\",\"companyId\":\"capisso-test\"}"
+}
