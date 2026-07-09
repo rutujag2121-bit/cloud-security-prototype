@@ -1,0 +1,7 @@
+{
+  "httpMethod": "POST",
+  "headers": {
+    "Origin": "http://localhost:3000"
+  },
+  "body": "{\"fileName\":\"large.pdf\",\"contentType\":\"application/pdf\",\"fileSizeBytes\":15000000}"
+}
