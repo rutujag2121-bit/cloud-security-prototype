@@ -76,3 +76,9 @@ The Lambda upload initiation function was tested against invalid upload metadata
 | Extension/content-type mismatch | `400` error response | Passed |
 
 These tests confirm that the upload API does not create pre-signed S3 URLs for unsupported, oversized, or inconsistent file metadata.
+
+| Supabase documents table created | Pending screenshot |
+| Supabase audit_logs table created | Pending screenshot |
+| Upload initiation created document record | Pending screenshot |
+| Upload initiation created audit record | Pending screenshot |
+| CloudWatch log with databaseWrite completed | Pending screenshot |
