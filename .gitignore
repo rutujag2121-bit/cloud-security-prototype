@@ -1,11 +1,40 @@
+# Environment files
 .env
 .env.local
+.env.*.local
+
+# AWS / credentials
 *.pem
 *.key
 aws-credentials*
+.aws/
+credentials
+config
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Node / frontend later
+node_modules/
+.next/
+dist/
+build/
+
+# Terraform / infrastructure state
 .terraform/
 terraform.tfstate
 terraform.tfstate.backup
+*.tfvars
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Local test artifacts
+*.zip
+*.log
+local-output/
+private-evidence/
