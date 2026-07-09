@@ -71,3 +71,21 @@ Next steps:
 - Add Supabase PostgreSQL document metadata table.
 - Add audit log table.
 - Add S3/SQS-triggered pre-processing Lambda.
+
+### Upload Validation Tests Completed
+
+The upload initiation Lambda was tested using the repository test events:
+
+- `test-events/invalid-file-type.json`
+- `test-events/oversized-file.json`
+- `test-events/extension-mismatch.json`
+
+All rejection test cases returned the expected `400` response.
+
+Security significance:
+- Unsupported executable-style files are rejected.
+- Files over the 10 MB limit are rejected.
+- Mismatched file extension and content type combinations are rejected.
+- The Lambda only generates S3 pre-signed upload URLs for valid PDF, JPEG, or PNG metadata.
+
+This confirms that the upload boundary now enforces basic secure API validation before allowing document storage in S3.
