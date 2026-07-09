@@ -200,3 +200,4 @@ def lambda_handler(event, context):
             "error": "Internal server error while creating upload URL",
             "traceId": trace_id
         })
+
