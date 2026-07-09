@@ -17,7 +17,7 @@ This folder lists implementation evidence collected during the cloud security pr
 | Invalid file type rejected | Completed |
 | Oversized file rejected | Completed |
 | Extension/content-type mismatch rejected | Completed |
-| CloudWatch safe log generated | Pending |
+| CloudWatch safe log generated | Completed |
 
 ## Successful Upload Initiation Test
 
