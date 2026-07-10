@@ -2,7 +2,7 @@
 
 This folder lists implementation evidence collected during the cloud security prototype build.
 
-## Week 1 Evidence Checklist
+##  Evidence Checklist
 
 | Evidence Item | Status |
 |---|---|
@@ -77,8 +77,31 @@ The Lambda upload initiation function was tested against invalid upload metadata
 
 These tests confirm that the upload API does not create pre-signed S3 URLs for unsupported, oversized, or inconsistent file metadata.
 
-| Supabase documents table created | Pending screenshot |
-| Supabase audit_logs table created | Pending screenshot |
-| Upload initiation created document record | Pending screenshot |
-| Upload initiation created audit record | Pending screenshot |
-| CloudWatch log with databaseWrite completed | Pending screenshot |
+| Supabase documents table created | Completed |
+| Supabase audit_logs table created | completedt |
+| Upload initiation created document record | completed |
+| Upload initiation created audit record | completed |
+| CloudWatch log with databaseWrite completed | completed |
+
+## Stage 3 — Event-Driven Pre-processing Evidence
+
+| Evidence Item | Status | Storage |
+|---|---|---|
+| SQS dead-letter queue `capisso-preprocess-dlq` created | Completed | Local screenshot |
+| SQS main queue `capisso-preprocess-queue` created | Completed | Local screenshot |
+| Dead-letter queue configured with maximum receives set to 3 | Completed | Local screenshot |
+| SQS access policy allows S3 bucket to send messages | Completed | Local screenshot |
+| S3 event notification created for `raw/` prefix | Completed | Local screenshot |
+| Pre-processing Lambda created | Completed | Local screenshot |
+| Pre-processing Lambda IAM policy attached | Completed | Local screenshot |
+| SQS trigger attached to pre-processing Lambda | Completed | Local screenshot |
+| File uploaded to S3 through pre-signed URL | Completed | Local screenshot |
+| Pre-processing Lambda CloudWatch log generated | Completed | Local screenshot |
+| Supabase document status updated by pre-processing Lambda | Completed | Local screenshot |
+| Supabase audit log records generated | Completed | Local screenshot |
+
+## Stage 3 Evidence Handling Rule
+
+Screenshots are stored locally unless cropped and sanitized. Do not commit AWS account IDs, full ARNs where unnecessary, pre-signed URLs, access tokens, Supabase service-role keys, or real receipt/invoice data.
+
+
