@@ -22,7 +22,8 @@ S3 raw upload
 → Supabase document status update
 → Supabase audit log update
 → CloudWatch structured log
-
+```
+AWS Resources Added
 | Resource              | Name                                    | Purpose                                                  |
 | --------------------- | --------------------------------------- | -------------------------------------------------------- |
 | SQS dead-letter queue | `capisso-preprocess-dlq`                | Stores messages that fail repeatedly                     |
@@ -31,18 +32,15 @@ S3 raw upload
 | Pre-processing Lambda | `document-processing-preprocess-lambda` | Validates uploaded objects and updates status/audit logs |
 | Lambda SQS trigger    | SQS event source mapping                | Invokes pre-processing Lambda from queue messages        |
 
-Why SQS Was Added
+SQS was added between S3 and Lambda to avoid tightly coupling storage events directly to processing.
+| Benefit           | Explanation                                                |
+| ----------------- | ---------------------------------------------------------- |
+| Buffering         | Upload events can wait in the queue if Lambda is busy      |
+| Retry handling    | Failed events can be retried automatically                 |
+| Failure isolation | Failed messages can move to the DLQ                        |
+| Better evidence   | Queue and DLQ provide visible proof of event-driven design |
+| Scalability       | Multiple uploaded documents can be handled asynchronously  |
 
-SQS was added between S3 and Lambda to avoid tightly coupling storage events directly to processing. This gives the pipeline:
-
-Benefit	- Explanation
-Buffering	 - Upload events can wait in the queue if Lambda is busy
-Retry handling - 	Failed events can be retried automatically
-Failure isolation	- Failed messages can move to the DLQ
-Better evidence	- Queue and DLQ provide visible proof of event-driven design
-Scalability -	Multiple uploaded documents can be handled asynchronously
-
-Why a Dead-Letter Queue Was Added
 The dead-letter queue stores events that fail processing multiple times. This prevents repeated failures from being hidden or retried indefinitely.
 For this prototype, the maximum receive count is set to 3. If the same message fails three times, it is moved to the DLQ for investigation.
 
@@ -84,12 +82,3 @@ Security Controls Implemented
 
 This stage improves the system because document processing no longer depends on manual checking after upload. The system automatically detects newly uploaded files, places the event into a queue, and processes it through a dedicated Lambda function.
 This supports a stronger security posture because the document lifecycle is traceable, failed processing events are recoverable, and the pre-processing function has a restricted role with only the permissions needed for this stage.
-
-Remaining Work
-| Remaining Area       | Next Action                                     |
-| -------------------- | ----------------------------------------------- |
-| OCR/model extraction | Add Bedrock/SageMaker or mock extraction Lambda |
-| Post-processing      | Validate extracted JSON and confidence values   |
-| HITL routing         | Route low-confidence results to manual review   |
-| Deletion             | Add secure document deletion endpoint           |
-| Monitoring           | Add CloudWatch alarms and metrics               |
