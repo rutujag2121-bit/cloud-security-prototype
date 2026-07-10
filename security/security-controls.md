@@ -16,11 +16,9 @@ The initial `/upload` endpoint accepted metadata, validated basic fields, genera
 
 ### Improved Security Posture
 
-The upload flow has been upgraded to generate a controlled S3 pre-signed upload URL. The uploaded document is stored directly in encrypted S3 object storage under a structured `raw/` prefix.
+The upload flow was upgraded to generate a controlled S3 pre-signed upload URL. The uploaded document is stored directly in encrypted S3 object storage under a structured `raw/` prefix.
 
----
-
-## Implemented Controls
+### Implemented Controls
 
 | Security Area | Implemented Control | Reason |
 |---|---|---|
@@ -37,33 +35,26 @@ The upload flow has been upgraded to generate a controlled S3 pre-signed upload 
 
 ---
 
-## AWS Configuration Evidence
+## Stage 2: Supabase Metadata and Audit Logging
 
-| AWS Area | Required Evidence |
-|---|---|
-| S3 bucket | Dedicated bucket exists for document storage |
-| S3 prefixes | `raw/`, `processed/`, `rejected/`, `audit-artifacts/` |
-| S3 public access | Block Public Access enabled |
-| S3 encryption | Default encryption enabled |
-| Lambda environment variables | `BUCKET_NAME`, `UPLOAD_PREFIX`, `MAX_FILE_SIZE_BYTES`, `ALLOWED_ORIGINS`, `PRESIGNED_URL_EXPIRES_SECONDS` |
-| IAM | Inline policy restricts Lambda to S3 object upload on the raw prefix |
-| CloudWatch | Upload initiation logs contain trace IDs and no raw document data |
+### Purpose
+
+Stage 2 adds persistent document metadata and audit logging. This ensures that the system does not only return a temporary upload response, but also records document lifecycle state and security-relevant events.
+
+### Implemented Controls
+
+| Security Area | Implemented Control | Reason |
+|---|---|---|
+| Metadata tracking | Supabase `documents` table stores document ID, owner/context, file metadata, S3 location, status, and trace ID | Enables lifecycle governance |
+| Audit logging | Supabase `audit_logs` table stores actions such as `UPLOAD_INITIATED` | Supports compliance and incident review |
+| Traceability | `trace_id` is stored in both documents and audit logs | Connects API, Lambda, CloudWatch, and database evidence |
+| Data ownership preparation | `user_id` and `company_id` are stored with each document | Prepares for user/company isolation |
+| Backend-only key use | Supabase service role key is stored only as a Lambda environment variable | Prevents exposing privileged DB access in GitHub/frontend |
+| Lifecycle status | Initial document status is `upload_url_created` | Creates a controlled state transition model |
 
 ---
 
-## FRD SEC Mapping
-
-| FRD Security Requirement | Current Coverage |
-|---|---|
-| SEC-001 | Encrypted object storage and traceable upload activity |
-| SEC-002 | S3 storage hardening through encryption and public access blocking |
-| SEC-003 | Initial least-privilege IAM policy for upload Lambda |
-| SEC-004 | Safe CloudWatch security-relevant logging |
-| SEC-005 | No raw PII or document content logged |
-| SEC-006 | File type validation, file size validation, CORS control, and secure API boundary |
-
-
-## Stage 3: Event-Driven Pre-processing Security Controls
+## Stage 3: Event-Driven Pre-processing
 
 ### Architecture
 
@@ -72,28 +63,3 @@ S3 ObjectCreated event
 → SQS queue
 → Pre-processing Lambda
 → Supabase status/audit update
-```
-Implemented Controls
-
-| Security Area           | Implemented Control                                                  | Reason                                                                          |
-| ----------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------|              
-| Event-driven processing | S3 upload events trigger SQS messages                                | Starts processing automatically after upload                                    |
-| Queue buffering         | SQS queue receives upload events                                     | Prevents processing events from being lost ifLambda is temporarily unavailable  |
-| Failure handling        | DLQ stores repeatedly failed messages                                | Supports investigation and graceful failure handling                            |
-| Least privilege         | Pre-processing Lambda has scoped S3, SQS, and CloudWatch permissions | Reduces blast radius                                                            |
-| Prefix isolation        | S3 event notification is limited to `raw/`                           | Prevents processed/rejected artifacts from re-triggering this stage             |
-| Safe logging            | CloudWatch logs metadata only                                        | Prevents leakage of document contents or PII                                    |
-| Audit logging           | Supabase audit logs record upload and pre-processing events          | Supports traceability and compliance evidence                                   |
-| Status tracking         | Supabase document status is updated across pipeline stages           | Enables lifecycle governance                                                    |
-
-
-FRD Security Mapping
-| FRD Security Requirement | Stage 3 Coverage                                             |
-| ------------------------ | ------------------------------------------------------------ |
-| SEC-001                  | Adds traceable processing activity and audit evidence        |
-| SEC-002                  | Maintains protected storage workflow through S3 raw prefix   |
-| SEC-003                  | Adds function-specific least-privilege access                |
-| SEC-004                  | Adds pre-processing event logs and processing status records |
-| SEC-005                  | Avoids logging raw document contents or extracted PII        |
-| SEC-006                  | Supports controlled backend processing after secure upload   |
-
