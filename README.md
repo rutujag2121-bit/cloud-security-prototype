@@ -5,22 +5,61 @@ This repository documents the development of a cloud security and serverless pro
 ## Current Implementation
 
 Implemented:
+
 - AWS API Gateway REST API
-- `/upload` POST endpoint
+- Initial `/upload` POST endpoint
+- Secure upload initiation flow
 - AWS Lambda upload handler
 - Metadata validation for uploaded documents
-- UUID-based job tracking
-- Initial API Gateway test evidence
+- File type validation for PDF, JPEG, and PNG
+- 10 MB file size validation
+- Filename sanitization
+- UUID-based document/job tracking
+- S3 pre-signed upload URL generation
+- Structured S3 object key under the `raw/` prefix
+- S3 bucket with Block Public Access enabled
+- S3 default server-side encryption enabled
+- S3 prefixes for `raw/`, `processed/`, `rejected/`, and `audit-artifacts/`
+- Supabase PostgreSQL document metadata table
+- Supabase audit logging table
+- Upload Lambda integration with Supabase metadata/audit records
+- SQS preprocessing queue
+- SQS dead-letter queue
+- S3 ObjectCreated event notification for `raw/`
+- Pre-processing Lambda triggered through SQS
+- Supabase document status updates during pre-processing
+- CloudWatch safe structured logging with trace IDs
+- IAM policy templates for least-privilege upload and pre-processing functions
+- Test events and implementation documentation
 
-## Planned Components
+## Current Pipeline
+
+```text
+Client/API test event
+→ API Gateway
+→ Upload Lambda
+→ S3 pre-signed upload URL
+→ S3 raw document storage
+→ S3 ObjectCreated event
+→ SQS preprocessing queue
+→ Pre-processing Lambda
+→ Supabase status and audit updates
+→ CloudWatch trace logs
+```
+Planned Components
 
 Next:
-- GET `/status` endpoint
-- Supabase PostgreSQL integration
-- Supabase Storage integration
-- AWS Bedrock document understanding
-- AWS SageMaker custom model workflow
-- Security controls and audit logging
+
+OCR/model extraction stage
+AWS Bedrock/SageMaker model adapter
+Processed result schema
+Confidence scoring
+Post-processing validation
+HITL review routing for low-confidence documents
+CloudWatch alarms and DLQ monitoring
+Secure deletion endpoint
+Final security evaluation against FRD SEC-001 to SEC-006
+
 
 ## Project Purpose
 
