@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowS3BucketToSendObjectCreatedEvents",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "s3.amazonaws.com"
+      },
+      "Action": "sqs:SendMessage",
+      "Resource": "arn:aws:sqs:<REGION>:<ACCOUNT_ID>:capisso-preprocess-queue",
+      "Condition": {
+        "ArnLike": {
+          "aws:SourceArn": "arn:aws:s3:::<S3_BUCKET_NAME>"
+        }
+      }
+    }
+  ]
+}
