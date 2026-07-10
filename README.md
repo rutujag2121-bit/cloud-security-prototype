@@ -1,6 +1,8 @@
-# cl# Capisso DEW Cloud Security Prototype
+# Capisso DEW Cloud Security Prototype
 
 This repository documents the development of a cloud security and serverless processing prototype for the Capisso.ai Document Extraction Workflow (DEW) system.
+
+The project focuses on securing an AI-driven document processing pipeline for receipts and invoices. The implementation demonstrates secure upload initiation, encrypted cloud storage, metadata tracking, audit logging, event-driven pre-processing, and least-privilege access controls.
 
 ## Current Implementation
 
@@ -25,7 +27,7 @@ Implemented:
 - Upload Lambda integration with Supabase metadata/audit records
 - SQS preprocessing queue
 - SQS dead-letter queue
-- S3 ObjectCreated event notification for `raw/`
+- S3 ObjectCreated event notification for the `raw/` prefix
 - Pre-processing Lambda triggered through SQS
 - Supabase document status updates during pre-processing
 - CloudWatch safe structured logging with trace IDs
@@ -45,22 +47,3 @@ Client/API test event
 → Pre-processing Lambda
 → Supabase status and audit updates
 → CloudWatch trace logs
-```
-Planned Components
-
-Next:
-
-OCR/model extraction stage
-AWS Bedrock/SageMaker model adapter
-Processed result schema
-Confidence scoring
-Post-processing validation
-HITL review routing for low-confidence documents
-CloudWatch alarms and DLQ monitoring
-Secure deletion endpoint
-Final security evaluation against FRD SEC-001 to SEC-006
-
-
-## Project Purpose
-
-The purpose of this repository is to maintain code history, implementation notes, test evidence, and security design decisions throughout the capstone project.
