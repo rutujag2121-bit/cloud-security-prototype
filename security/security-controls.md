@@ -63,3 +63,17 @@ S3 ObjectCreated event
 → SQS queue
 → Pre-processing Lambda
 → Supabase status/audit update
+```
+### Implemented Controls
+
+| Security Area           | Implemented Control                                                  | Reason                                                                          |
+| ----------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Event-driven processing | S3 upload events trigger SQS messages                                | Starts processing automatically after upload                                    |
+| Queue buffering         | SQS queue receives upload events                                     | Prevents processing events from being lost if Lambda is temporarily unavailable |
+| Failure handling        | DLQ stores repeatedly failed messages                                | Supports investigation and graceful failure handling                            |
+| Least privilege         | Pre-processing Lambda has scoped S3, SQS, and CloudWatch permissions | Reduces blast radius                                                            |
+| Prefix isolation        | S3 event notification is limited to `raw/`                           | Prevents processed/rejected artifacts from re-triggering this stage             |
+| Safe logging            | CloudWatch logs metadata only                                        | Prevents leakage of document contents or PII                                    |
+| Audit logging           | Supabase audit logs record upload and pre-processing events          | Supports traceability and compliance evidence                                   |
+| Status tracking         | Supabase document status is updated across pipeline stages           | Enables lifecycle governance                                                    |
+
