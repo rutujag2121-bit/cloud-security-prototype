@@ -1,87 +1,41 @@
 # Evidence Folder
 
-This folder lists implementation evidence collected during the cloud security prototype build.
+This folder tracks implementation evidence for the cloud security prototype.
 
-##  Evidence Checklist
+Screenshots are stored locally unless they are cropped and sanitized. The public GitHub repository should contain an evidence index, not a dump of sensitive screenshots.
 
-| Evidence Item | Status |
-|---|---|
-| S3 bucket created | Completed |
-| S3 Block Public Access enabled | Completed |
-| S3 default encryption enabled | Completed |
-| S3 prefixes created: raw, processed, rejected, audit-artifacts | Completed |
-| Lambda IAM inline policy attached | Completed |
-| Lambda environment variables configured | Completed |
-| Valid upload initiation test passed | Completed |
-| S3 object uploaded through pre-signed URL | Completed |
-| Invalid file type rejected | Completed |
-| Oversized file rejected | Completed |
-| Extension/content-type mismatch rejected | Completed |
-| CloudWatch safe log generated | Completed |
+---
 
-## Successful Upload Initiation Test
+## Stage 1 — Secure Upload Evidence
 
-The Lambda upload initiation test returned `statusCode: 201` and generated:
-
-- `documentId`
-- `jobId`
-- `status: upload_url_created`
-- S3 `objectKey`
-- pre-signed S3 PUT upload URL
-- `traceId`
-- `createdAt` timestamp
-
-The full pre-signed URL is not committed to GitHub because it is a temporary upload credential.
-
-## Successful S3 Upload Test
-
-The generated pre-signed URL was tested using Postman.
-
-Test configuration:
-
-Method: PUT
-Header: Content-Type = application/pdf
-Body: binary PDF file
-
-result :
-200 ok
-
-{
-  "statusCode": 201,
-  "body": {
-    "message": "Secure upload URL created",
-    "documentId": "generated-uuid",
-    "jobId": "generated-uuid",
-    "status": "upload_url_created",
-    "bucket": "capisso-documents-dev-rutuja-731039144759-ap-southeast-2-an",
-    "objectKey": "raw/capisso-test/test-user-1/generated-uuid/receipt1.pdf",
-    "uploadUrl": "[REDACTED]",
-    "uploadMethod": "PUT",
-    "requiredHeaders": {
-      "Content-Type": "application/pdf"
-    },
-    "expiresInSeconds": 900,
-    "traceId": "aws-request-id",
-    "createdAt": "timestamp"
-  }
-}
-## Upload Validation Rejection Tests
-
-The Lambda upload initiation function was tested against invalid upload metadata to confirm that unsupported or unsafe files are rejected before an S3 upload URL is generated.
-
-| Test Case | Expected Result | Status |
+| Evidence Item | Status | Storage |
 |---|---|---|
-| Unsupported file type: `application/x-msdownload` | `400` error response | Passed |
-| Oversized file greater than 10 MB | `400` error response | Passed |
-| Extension/content-type mismatch | `400` error response | Passed |
+| S3 bucket created | Completed | Local screenshot |
+| S3 Block Public Access enabled | Completed | Local screenshot |
+| S3 default encryption enabled | Completed | Local screenshot |
+| S3 prefixes created: `raw`, `processed`, `rejected`, `audit-artifacts` | Completed | Local screenshot |
+| Upload Lambda environment variables configured | Completed | Local screenshot |
+| Upload Lambda IAM inline policy attached | Completed | Local screenshot |
+| Valid upload initiation test passed | Completed | Local screenshot |
+| Invalid file type rejected | Completed | Local screenshot |
+| Oversized file rejected | Completed | Local screenshot |
+| Extension/content-type mismatch rejected | Completed | Local screenshot |
+| S3 object uploaded through pre-signed URL | Completed | Local screenshot |
+| CloudWatch safe log generated with trace ID | Completed | Local screenshot |
 
-These tests confirm that the upload API does not create pre-signed S3 URLs for unsupported, oversized, or inconsistent file metadata.
+---
 
-| Supabase documents table created | Completed |
-| Supabase audit_logs table created | completedt |
-| Upload initiation created document record | completed |
-| Upload initiation created audit record | completed |
-| CloudWatch log with databaseWrite completed | completed |
+## Stage 2 — Supabase Metadata and Audit Evidence
+
+| Evidence Item | Status | Storage |
+|---|---|---|
+| Supabase `documents` table created | Completed | Local screenshot |
+| Supabase `audit_logs` table created | Completed | Local screenshot |
+| Upload initiation created document record | Completed | Local screenshot |
+| Upload initiation created audit record | Completed | Local screenshot |
+| CloudWatch log confirms database write | Completed | Local screenshot |
+
+---
 
 ## Stage 3 — Event-Driven Pre-processing Evidence
 
@@ -100,8 +54,26 @@ These tests confirm that the upload API does not create pre-signed S3 URLs for u
 | Supabase document status updated by pre-processing Lambda | Completed | Local screenshot |
 | Supabase audit log records generated | Completed | Local screenshot |
 
-## Stage 3 Evidence Handling Rule
+---
 
-Screenshots are stored locally unless cropped and sanitized. Do not commit AWS account IDs, full ARNs where unnecessary, pre-signed URLs, access tokens, Supabase service-role keys, or real receipt/invoice data.
+## Evidence Handling Rule
 
+Do not commit:
 
+- AWS access keys
+- Supabase service-role keys
+- `.env` files
+- Full pre-signed URLs
+- Real receipt or invoice files containing PII
+- Full screenshots exposing account details, tokens, or sensitive configuration
+- Raw CloudWatch logs containing sensitive values
+
+Screenshots should be kept in a private local folder unless they are cropped and sanitized.
+
+Recommended private local structure:
+
+```text
+capstone-evidence-private/
+  stage-1-secure-upload/
+  stage-2-supabase-audit/
+  stage-3-event-driven-preprocessing/
