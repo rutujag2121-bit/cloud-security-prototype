@@ -62,15 +62,38 @@ The upload flow has been upgraded to generate a controlled S3 pre-signed upload 
 | SEC-005 | No raw PII or document content logged |
 | SEC-006 | File type validation, file size validation, CORS control, and secure API boundary |
 
----
 
-## Remaining Security Work
+## Stage 3: Event-Driven Pre-processing Security Controls
 
-| Area | Next Step |
-|---|---|
-| Authentication | Add Supabase Auth/JWT validation |
-| Database | Store document metadata in Supabase PostgreSQL |
-| Audit trail | Add `audit_logs` table |
-| Processing | Add S3/SQS-triggered pre-processing Lambda |
-| API hardening | Add API Gateway throttling and request model validation |
-| Deletion | Add secure deletion endpoint for S3 object and metadata |
+### Architecture
+
+```text
+S3 ObjectCreated event
+→ SQS queue
+→ Pre-processing Lambda
+→ Supabase status/audit update
+```
+Implemented Controls
+
+| Security Area           | Implemented Control                                                  | Reason                                                                          |
+| ----------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------|              
+| Event-driven processing | S3 upload events trigger SQS messages                                | Starts processing automatically after upload                                    |
+| Queue buffering         | SQS queue receives upload events                                     | Prevents processing events from being lost ifLambda is temporarily unavailable  |
+| Failure handling        | DLQ stores repeatedly failed messages                                | Supports investigation and graceful failure handling                            |
+| Least privilege         | Pre-processing Lambda has scoped S3, SQS, and CloudWatch permissions | Reduces blast radius                                                            |
+| Prefix isolation        | S3 event notification is limited to `raw/`                           | Prevents processed/rejected artifacts from re-triggering this stage             |
+| Safe logging            | CloudWatch logs metadata only                                        | Prevents leakage of document contents or PII                                    |
+| Audit logging           | Supabase audit logs record upload and pre-processing events          | Supports traceability and compliance evidence                                   |
+| Status tracking         | Supabase document status is updated across pipeline stages           | Enables lifecycle governance                                                    |
+
+
+FRD Security Mapping
+| FRD Security Requirement | Stage 3 Coverage                                             |
+| ------------------------ | ------------------------------------------------------------ |
+| SEC-001                  | Adds traceable processing activity and audit evidence        |
+| SEC-002                  | Maintains protected storage workflow through S3 raw prefix   |
+| SEC-003                  | Adds function-specific least-privilege access                |
+| SEC-004                  | Adds pre-processing event logs and processing status records |
+| SEC-005                  | Avoids logging raw document contents or extracted PII        |
+| SEC-006                  | Supports controlled backend processing after secure upload   |
+
