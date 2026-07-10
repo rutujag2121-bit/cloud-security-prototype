@@ -89,3 +89,40 @@ Security significance:
 - The Lambda only generates S3 pre-signed upload URLs for valid PDF, JPEG, or PNG metadata.
 
 This confirms that the upload boundary now enforces basic secure API validation before allowing document storage in S3.
+
+## Stage 3 Progress — Event-Driven Pre-processing
+
+Completed:
+- Created SQS dead-letter queue `capisso-preprocess-dlq`.
+- Created SQS main queue `capisso-preprocess-queue`.
+- Configured the main queue to use the DLQ with maximum receives set to 3.
+- Added SQS access policy so the S3 document bucket can send ObjectCreated events to the queue.
+- Configured S3 event notification for the `raw/` prefix.
+- Created pre-processing Lambda function.
+- Added least-privilege IAM permissions for S3 raw object read, SQS message processing, and CloudWatch logging.
+- Attached SQS trigger to the pre-processing Lambda.
+- Deployed pre-processing Lambda code.
+- Tested end-to-end upload event flow from S3 to SQS to Lambda.
+- Confirmed CloudWatch logging for the pre-processing stage.
+- Confirmed Supabase status/audit updates where applicable.
+
+Why this was implemented:
+- The previous stage created secure upload URLs but did not automatically start processing after upload.
+- This stage introduces an event-driven processing skeleton.
+- SQS provides buffering, retries, and dead-letter handling.
+- The pre-processing Lambda validates uploaded objects before they move to OCR/model extraction.
+- Supabase status and audit records improve traceability and compliance evidence.
+
+Security value:
+- Improves lifecycle tracking.
+- Supports failure handling through DLQ.
+- Keeps Lambda permissions scoped to required resources.
+- Avoids logging document content or PII.
+- Provides traceable status changes for uploaded documents.
+
+Next steps:
+- Add OCR/model extraction stage.
+- Add processed result schema.
+- Add confidence scoring.
+- Add HITL routing for low-confidence results.
+- Add CloudWatch alarms for failed processing.
