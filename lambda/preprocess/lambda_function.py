@@ -17,6 +17,12 @@ BUCKET_NAME = os.environ.get("BUCKET_NAME", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
+ALLOWED_CONTENT_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png"
+]
+
 
 def supabase_request(method, table_name, payload=None, query_string=""):
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
@@ -28,7 +34,12 @@ def supabase_request(method, table_name, payload=None, query_string=""):
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
 
-    request = urllib.request.Request(url=url, data=data, method=method)
+    request = urllib.request.Request(
+        url=url,
+        data=data,
+        method=method
+    )
+
     request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
     request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
     request.add_header("Content-Type", "application/json")
@@ -39,12 +50,15 @@ def supabase_request(method, table_name, payload=None, query_string=""):
     try:
         with urllib.request.urlopen(request, timeout=8) as result:
             if result.status < 200 or result.status >= 300:
-                raise RuntimeError(f"Supabase request failed with status {result.status}")
+                raise RuntimeError(
+                    f"Supabase request failed with status {result.status}"
+                )
 
     except urllib.error.HTTPError as error:
         error_body = error.read().decode("utf-8", errors="replace")
         raise RuntimeError(
-            f"Supabase request failed for {table_name}: {error.code} {error_body[:500]}"
+            f"Supabase request failed for {table_name}: "
+            f"{error.code} {error_body[:500]}"
         )
 
     except urllib.error.URLError as error:
@@ -68,7 +82,16 @@ def update_document_status(document_id, status, trace_id):
     )
 
 
-def insert_audit_log(document_id, user_id, company_id, action, resource, result, trace_id, details):
+def insert_audit_log(
+    document_id,
+    user_id,
+    company_id,
+    action,
+    resource,
+    result,
+    trace_id,
+    details
+):
     payload = {
         "document_id": document_id,
         "user_id": user_id,
@@ -93,7 +116,10 @@ def parse_object_key(object_key):
     parts = object_key.split("/")
 
     if len(parts) < 5:
-        raise ValueError("Object key does not match expected raw/company/user/document/file format")
+        raise ValueError(
+            "Object key does not match expected "
+            "raw/company/user/document/file format"
+        )
 
     prefix = parts[0]
     company_id = parts[1]
@@ -153,9 +179,7 @@ def handle_s3_record(s3_record, trace_id):
     object_size = head_response.get("ContentLength")
     content_type = head_response.get("ContentType", "unknown")
 
-    allowed_types = ["application/pdf", "image/jpeg", "image/png"]
-
-    if content_type not in allowed_types:
+    if content_type not in ALLOWED_CONTENT_TYPES:
         update_document_status(document_id, "preprocessing_failed", trace_id)
 
         insert_audit_log(
