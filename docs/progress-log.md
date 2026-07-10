@@ -1,8 +1,9 @@
 # Progress Log
 
-## AWS API Gateway and Lambda Prototype
+## Stage 0: AWS API Gateway and Lambda Prototype
 
 Completed:
+
 - Created AWS REST API using API Gateway.
 - Created `/upload` resource.
 - Added POST method under `/upload`.
@@ -16,26 +17,24 @@ Completed:
 - Tested API Gateway `/upload` POST method successfully.
 
 Test result:
+
 - API Gateway invoked Lambda successfully.
 - Lambda returned `statusCode: 201`.
 - Response included generated `jobId`.
 - Initial processing status returned as `received`.
 
 Issue encountered:
+
 - Initial Lambda code expected request data inside `event["body"]`.
 - API Gateway test passed JSON fields directly in the event object.
 - Lambda code was updated to support both formats.
 
-Next steps:
-- Add GET `/status` endpoint.
-- Connect metadata storage to Supabase PostgreSQL.
-- Investigate Supabase Storage for document files.
-- Move later to AWS Bedrock/SageMaker processing.
+---
 
-
-## Secure Upload Upgrade — S3 Pre-signed URL Flow
+## Stage 1: Secure Upload Upgrade — S3 Pre-signed URL Flow
 
 Completed:
+
 - Created dedicated S3 bucket for document storage.
 - Added S3 prefixes: `raw/`, `processed/`, `rejected/`, and `audit-artifacts/`.
 - Enabled S3 Block Public Access.
@@ -48,51 +47,93 @@ Completed:
 - Added safe structured logs with trace IDs.
 - Added test events for valid upload, invalid file type, oversized file, and extension mismatch.
 
-### S3 Upload Test Completed
+Security value:
 
-A valid upload initiation request was tested through AWS Lambda. The Lambda returned `statusCode: 201`, generated a `documentId`, created a structured S3 object key, and returned a pre-signed S3 PUT URL.
+- Documents are uploaded directly to S3 rather than through Lambda as large payloads.
+- Upload URLs are short-lived.
+- The S3 object path is structured by company ID, user ID, and document ID.
+- Public access is blocked at the bucket level.
+- Storage encryption is enabled.
 
-The pre-signed URL was then tested in Postman using:
+---
+
+## Stage 1 Validation: S3 Upload Test
+
+Completed:
+
+- A valid upload initiation request was tested through AWS Lambda.
+- Lambda returned `statusCode: 201`.
+- Lambda generated a `documentId`.
+- Lambda created a structured S3 object key.
+- Lambda returned a pre-signed S3 PUT URL.
+- The pre-signed URL was tested in Postman.
+- Postman upload returned `200 OK`.
+- The file appeared under the S3 `raw/` prefix.
+
+Postman upload configuration:
 
 - Method: `PUT`
 - Header: `Content-Type: application/pdf`
 - Body: binary PDF file
 
-The upload returned `200 OK`, confirming that the generated pre-signed URL successfully uploads the document into the S3 `raw/` prefix.
-
 Security significance:
-- The document is uploaded directly to S3 instead of passing through Lambda as a large payload.
-- The S3 object path is structured by company ID, user ID, and document ID.
-- The upload URL is short-lived and is not committed to GitHub.
-- The uploaded document is stored in a bucket with public access blocked and encryption enabled.
 
-Next steps:
-- Test rejection cases: invalid file type, oversized file, and extension/content-type mismatch.
-- Add Supabase PostgreSQL document metadata table.
-- Add audit log table.
-- Add S3/SQS-triggered pre-processing Lambda.
+- The full pre-signed URL is not committed to GitHub.
+- The document is uploaded directly to protected S3 storage.
+- The object path supports lifecycle tracking.
 
-### Upload Validation Tests Completed
+---
 
-The upload initiation Lambda was tested using the repository test events:
+## Stage 1 Validation: Upload Rejection Tests
+
+Completed using repository test events:
 
 - `test-events/invalid-file-type.json`
 - `test-events/oversized-file.json`
 - `test-events/extension-mismatch.json`
 
-All rejection test cases returned the expected `400` response.
+All rejection cases returned the expected `400` response.
 
 Security significance:
+
 - Unsupported executable-style files are rejected.
 - Files over the 10 MB limit are rejected.
 - Mismatched file extension and content type combinations are rejected.
-- The Lambda only generates S3 pre-signed upload URLs for valid PDF, JPEG, or PNG metadata.
+- Lambda only generates S3 pre-signed upload URLs for valid PDF, JPEG, or PNG metadata.
 
-This confirms that the upload boundary now enforces basic secure API validation before allowing document storage in S3.
+---
 
-## Stage 3 Progress — Event-Driven Pre-processing
+## Stage 2: Supabase Metadata and Audit Logging
 
 Completed:
+
+- Created Supabase `documents` table.
+- Created Supabase `audit_logs` table.
+- Added schema file to `database/supabase-schema.sql`.
+- Added Supabase URL and service role key as Lambda environment variables.
+- Updated upload Lambda to insert document metadata.
+- Updated upload Lambda to insert an `UPLOAD_INITIATED` audit event.
+- Stored `trace_id` in Supabase records.
+- Confirmed database insert after upload initiation.
+
+Why this was implemented:
+
+- The previous stage returned a document ID but did not persist lifecycle metadata.
+- Supabase now stores document status, S3 object location, trace ID, user ID, and company ID.
+- Audit logs provide compliance and investigation evidence.
+
+Security value:
+
+- Adds persistent document lifecycle tracking.
+- Adds business-level audit logging separate from CloudWatch technical logs.
+- Prepares the system for deletion, status retrieval, HITL routing, and processing history.
+
+---
+
+## Stage 3: Event-Driven Pre-processing
+
+Completed:
+
 - Created SQS dead-letter queue `capisso-preprocess-dlq`.
 - Created SQS main queue `capisso-preprocess-queue`.
 - Configured the main queue to use the DLQ with maximum receives set to 3.
@@ -107,6 +148,7 @@ Completed:
 - Confirmed Supabase status/audit updates where applicable.
 
 Why this was implemented:
+
 - The previous stage created secure upload URLs but did not automatically start processing after upload.
 - This stage introduces an event-driven processing skeleton.
 - SQS provides buffering, retries, and dead-letter handling.
@@ -114,15 +156,22 @@ Why this was implemented:
 - Supabase status and audit records improve traceability and compliance evidence.
 
 Security value:
+
 - Improves lifecycle tracking.
 - Supports failure handling through DLQ.
 - Keeps Lambda permissions scoped to required resources.
 - Avoids logging document content or PII.
 - Provides traceable status changes for uploaded documents.
 
-Next steps:
+---
+
+## Next Steps
+
+Planned next stage:
+
 - Add OCR/model extraction stage.
 - Add processed result schema.
 - Add confidence scoring.
 - Add HITL routing for low-confidence results.
 - Add CloudWatch alarms for failed processing.
+- Add secure deletion workflow.
