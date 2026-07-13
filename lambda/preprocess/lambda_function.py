@@ -12,16 +12,12 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3 = boto3.client("s3")
+sqs = boto3.client("sqs")
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-
-ALLOWED_CONTENT_TYPES = [
-    "application/pdf",
-    "image/jpeg",
-    "image/png"
-]
+EXTRACTION_QUEUE_URL = os.environ.get("EXTRACTION_QUEUE_URL", "")
 
 
 def supabase_request(method, table_name, payload=None, query_string=""):
@@ -34,12 +30,7 @@ def supabase_request(method, table_name, payload=None, query_string=""):
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
 
-    request = urllib.request.Request(
-        url=url,
-        data=data,
-        method=method
-    )
-
+    request = urllib.request.Request(url=url, data=data, method=method)
     request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
     request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
     request.add_header("Content-Type", "application/json")
@@ -50,15 +41,12 @@ def supabase_request(method, table_name, payload=None, query_string=""):
     try:
         with urllib.request.urlopen(request, timeout=8) as result:
             if result.status < 200 or result.status >= 300:
-                raise RuntimeError(
-                    f"Supabase request failed with status {result.status}"
-                )
+                raise RuntimeError(f"Supabase request failed with status {result.status}")
 
     except urllib.error.HTTPError as error:
         error_body = error.read().decode("utf-8", errors="replace")
         raise RuntimeError(
-            f"Supabase request failed for {table_name}: "
-            f"{error.code} {error_body[:500]}"
+            f"Supabase request failed for {table_name}: {error.code} {error_body[:500]}"
         )
 
     except urllib.error.URLError as error:
@@ -82,16 +70,7 @@ def update_document_status(document_id, status, trace_id):
     )
 
 
-def insert_audit_log(
-    document_id,
-    user_id,
-    company_id,
-    action,
-    resource,
-    result,
-    trace_id,
-    details
-):
+def insert_audit_log(document_id, user_id, company_id, action, resource, result, trace_id, details):
     payload = {
         "document_id": document_id,
         "user_id": user_id,
@@ -110,16 +89,35 @@ def insert_audit_log(
     )
 
 
+def send_to_extraction_queue(document_id, user_id, company_id, bucket_name, object_key, content_type, object_size, trace_id):
+    if not EXTRACTION_QUEUE_URL:
+        raise RuntimeError("EXTRACTION_QUEUE_URL is missing")
+
+    message = {
+        "documentId": document_id,
+        "userId": user_id,
+        "companyId": company_id,
+        "bucket": bucket_name,
+        "objectKey": object_key,
+        "contentType": content_type,
+        "objectSize": object_size,
+        "traceId": trace_id,
+        "sourceStage": "preprocessing"
+    }
+
+    sqs.send_message(
+        QueueUrl=EXTRACTION_QUEUE_URL,
+        MessageBody=json.dumps(message)
+    )
+
+
 def parse_object_key(object_key):
     # Expected format:
     # raw/{company_id}/{user_id}/{document_id}/{file_name}
     parts = object_key.split("/")
 
     if len(parts) < 5:
-        raise ValueError(
-            "Object key does not match expected "
-            "raw/company/user/document/file format"
-        )
+        raise ValueError("Object key does not match expected raw/company/user/document/file format")
 
     prefix = parts[0]
     company_id = parts[1]
@@ -179,7 +177,9 @@ def handle_s3_record(s3_record, trace_id):
     object_size = head_response.get("ContentLength")
     content_type = head_response.get("ContentType", "unknown")
 
-    if content_type not in ALLOWED_CONTENT_TYPES:
+    allowed_types = ["application/pdf", "image/jpeg", "image/png"]
+
+    if content_type not in allowed_types:
         update_document_status(document_id, "preprocessing_failed", trace_id)
 
         insert_audit_log(
@@ -216,11 +216,36 @@ def handle_s3_record(s3_record, trace_id):
         }
     )
 
+    send_to_extraction_queue(
+        document_id=document_id,
+        user_id=user_id,
+        company_id=company_id,
+        bucket_name=bucket_name,
+        object_key=object_key,
+        content_type=content_type,
+        object_size=object_size,
+        trace_id=trace_id
+    )
+
+    insert_audit_log(
+        document_id=document_id,
+        user_id=user_id,
+        company_id=company_id,
+        action="EXTRACTION_QUEUED",
+        resource=object_key,
+        result="SUCCESS",
+        trace_id=trace_id,
+        details={
+            "queue": "capisso-extraction-queue",
+            "sourceStage": "preprocessing"
+        }
+    )
+
     logger.info(json.dumps({
         "traceId": trace_id,
         "documentId": document_id,
         "stage": "preprocessing",
-        "status": "preprocessing_completed",
+        "status": "extraction_queued",
         "bucket": bucket_name,
         "objectKey": object_key,
         "contentType": content_type,
