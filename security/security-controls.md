@@ -77,3 +77,14 @@ S3 ObjectCreated event
 | Audit logging           | Supabase audit logs record upload and pre-processing events          | Supports traceability and compliance evidence                                   |
 | Status tracking         | Supabase document status is updated across pipeline stages           | Enables lifecycle governance                                                    |
 
+## Stage 4: Mock Extraction Security Controls
+
+### Architecture
+
+```text
+Extraction SQS queue
+→ Extraction Lambda
+→ Supabase processing_runs
+→ Supabase extraction_results
+→ Supabase audit_logs
+```
