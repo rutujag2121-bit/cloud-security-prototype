@@ -163,15 +163,39 @@ Security value:
 - Avoids logging document content or PII.
 - Provides traceable status changes for uploaded documents.
 
----
 
-## Next Steps
+## Stage 4 Progress — Mock Extraction Processing
 
-Planned next stage:
+Completed:
+- Created extraction SQS dead-letter queue `capisso-extraction-dlq`.
+- Created extraction SQS main queue `capisso-extraction-queue`.
+- Configured extraction queue with DLQ and maximum receives set to 3.
+- Added Supabase tables `processing_runs` and `extraction_results`.
+- Updated pre-processing Lambda to send validated documents to the extraction queue.
+- Created extraction Lambda function.
+- Added least-privilege IAM permissions for extraction queue processing and CloudWatch logging.
+- Attached SQS trigger to extraction Lambda.
+- Implemented mock structured extraction output.
+- Stored processing metadata in `processing_runs`.
+- Stored structured extracted data and confidence values in `extraction_results`.
+- Updated document lifecycle status after extraction.
+- Added extraction audit events.
+- Confirmed expected results in Supabase.
 
-- Add OCR/model extraction stage.
-- Add processed result schema.
-- Add confidence scoring.
-- Add HITL routing for low-confidence results.
-- Add CloudWatch alarms for failed processing.
-- Add secure deletion workflow.
+Why this was implemented:
+- The previous pipeline could upload and pre-process documents but did not create extraction output.
+- This stage proves the extraction pipeline mechanics before introducing Bedrock or SageMaker.
+- Mock extraction allows controlled testing of status tracking, audit logging, confidence scoring, and HITL readiness.
+
+Security value:
+- Keeps extraction as a separate Lambda with separate IAM scope.
+- Uses SQS and DLQ for retry and failure isolation.
+- Stores structured results in Supabase instead of logs.
+- Logs only metadata and trace information in CloudWatch.
+- Adds processing traceability through `processing_runs`, `extraction_results`, and `audit_logs`.
+
+Next steps:
+- Add post-processing validation rules.
+- Add HITL routing evidence for low-confidence results.
+- Add CloudWatch alarms for failed Lambda executions and DLQ messages.
+- Replace mock extraction with Bedrock/SageMaker or model adapter.
