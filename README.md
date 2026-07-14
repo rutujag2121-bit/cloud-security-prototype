@@ -38,12 +38,21 @@ Implemented:
 
 ```text
 Client/API test event
-→ API Gateway
-→ Upload Lambda
-→ S3 pre-signed upload URL
-→ S3 raw document storage
-→ S3 ObjectCreated event
-→ SQS preprocessing queue
-→ Pre-processing Lambda
-→ Supabase status and audit updates
-→ CloudWatch trace logs
+- API Gateway
+- Upload Lambda
+- S3 pre-signed upload URL
+- S3 raw document storage
+- S3 ObjectCreated event
+- SQS preprocessing queue
+- Pre-processing Lambda
+- Supabase status and audit updates
+- CloudWatch trace logs
+- Extraction SQS queue
+- Extraction dead-letter queue
+- Extraction Lambda triggered through SQS
+- Supabase `processing_runs` table
+- Supabase `extraction_results` table
+- Mock structured receipt/invoice extraction
+- Confidence score calculation
+- `needs_human_review` flag for HITL readiness
+- Extraction audit events
