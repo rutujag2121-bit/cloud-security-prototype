@@ -1,0 +1,11 @@
+{
+  "documentId": "replace-with-document-id",
+  "userId": "test-user-1",
+  "companyId": "capisso-test",
+  "bucket": "capisso-documents-dev-rutuja-731039144759-ap-southeast-2-an",
+  "objectKey": "raw/capisso-test/test-user-1/replace-with-document-id/receipt1.pdf",
+  "contentType": "application/pdf",
+  "objectSize": 250000,
+  "traceId": "manual-extraction-test",
+  "sourceStage": "preprocessing"
+}
