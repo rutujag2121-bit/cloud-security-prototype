@@ -18,5 +18,11 @@ Client/API test event
 → S3 ObjectCreated event
 → SQS preprocessing queue
 → Pre-processing Lambda
+→ SQS extraction queue
+→ Extraction Lambda
+→ Supabase processing_runs and extraction_results
 → Supabase status/audit updates
 → CloudWatch trace logs
+```
+
+| `document-processing-extraction-lambda` | `lambda/extraction/lambda_function.py` | SQS queue `capisso-extraction-queue` | Consumes extraction messages, creates mock structured extraction results, stores processing metadata/results in Supabase, updates document status, and writes extraction audit events | Active |
