@@ -199,3 +199,90 @@ Next steps:
 - Add HITL routing evidence for low-confidence results.
 - Add CloudWatch alarms for failed Lambda executions and DLQ messages.
 - Replace mock extraction with Bedrock/SageMaker or model adapter.
+
+---
+
+## 20 July 2026 — Stage 4: Mock Extraction Pipeline
+
+### Work completed
+
+- Created the extraction SQS queue and extraction dead-letter queue.
+- Connected the extraction queue to the extraction Lambda.
+- Added the extraction Lambda execution-role permissions.
+- Created the `processing_runs` and `extraction_results` Supabase tables.
+- Implemented deterministic mock extraction output.
+- Added field-level and overall confidence values.
+- Added the `needs_human_review` decision field.
+- Added document lifecycle status updates.
+- Added extraction-stage audit events.
+- Added structured CloudWatch logs with trace IDs.
+- Tested the full asynchronous workflow from document upload through extraction-result storage.
+
+### Result
+
+The complete event-driven workflow was successfully validated:
+
+```text
+API Gateway
+→ Upload Lambda
+→ S3
+→ Pre-processing SQS
+→ Pre-processing Lambda
+→ Extraction SQS
+→ Extraction Lambda
+→ Supabase
+→ CloudWatch
+```
+The mock adapter was used to test the architecture independently of model billing, availability, latency and provider-specific behaviour.
+
+### Limitation
+This stage did not demonstrate real AI document extraction. The mock output was used only to validate orchestration, status handling, audit logging, confidence routing and result persistence.
+
+## 26 July 2026 — Real Model Execution Decision
+Project-lead guidance
+
+The project lead confirmed that real paid-model execution can be deferred until billing-enabled credentials are available.
+The project should instead identify a suitable model from Amazon Bedrock or SageMaker so that it can be tested once project credentials are provided.
+
+## Decision
+
+The following implementation strategy was adopted:
+
+- Retain the working mock adapter for deterministic pipeline testing.
+- Do not redesign or migrate the existing AWS workflow.
+- Select and justify the proposed Bedrock model.
+- Identify a SageMaker alternative.
+- Prepare the secure model-invocation design.
+- Prepare the IAM policy, extraction prompt and JSON output schema.
+- Continue with framework, threat, post-processing and evaluation work.
+
+## Reasoning
+
+This decision avoids spending additional time on account-restricted services while preserving the existing AWS architecture.
+The extraction stage was deliberately designed as a replaceable provider adapter. A Bedrock or SageMaker implementation can therefore replace the mock adapter later without changing the upload, storage, queue, audit or database components.
+
+## Current project status
+| Area                                  | Status                                                    |
+| ------------------------------------- | --------------------------------------------------------- |
+| Secure upload pipeline                | Implemented                                               |
+| S3 storage and event trigger          | Implemented                                               |
+| Pre-processing queue and Lambda       | Implemented                                               |
+| Extraction queue and Lambda           | Implemented                                               |
+| Supabase processing and audit records | Implemented                                               |
+| Mock extraction orchestration         | Implemented                                               |
+| Real Textract adapter                 | Implemented but execution blocked by account restrictions |
+| Bedrock model selection               | Next task                                                 |
+| Threat modelling and risk register    | Pending                                                   |
+| NIST Current and Target Profiles      | Pending                                                   |
+| Post-processing validation            | Pending                                                   |
+| Low-confidence HITL testing           | Pending                                                   |
+| Monitoring alarms and evaluation      | Pending                                                   |
+
+# Immediate next steps
+- Document the selected Bedrock and SageMaker models.
+- Add the proposed Bedrock IAM policy template.
+- Add the secure extraction prompt and JSON schema.
+- Complete the threat model and risk register.
+- Extend the NIST CSF 2.0 mapping into Current and Target Profiles.
+- Implement post-processing and low-confidence routing tests.
+- Complete the security evaluation by 30 July 2026.
