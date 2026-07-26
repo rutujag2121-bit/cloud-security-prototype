@@ -79,44 +79,44 @@ Implementation Status
 - Structured and non-public S3 object paths
 
 ## Storage controls
--S3 Block Public Access
--Server-side encryption
--Restricted raw/ storage prefix
--No credentials or pre-signed URLs committed to GitHub
+- S3 Block Public Access
+- Server-side encryption
+- Restricted raw/ storage prefix
+- No credentials or pre-signed URLs committed to GitHub
 
 ## Identity and access controls
--Separate Lambda execution roles
--Least-privilege IAM policy templates
--S3 access limited to required prefixes
--SQS permissions limited to the appropriate processing queues
+- Separate Lambda execution roles
+- Least-privilege IAM policy templates
+- S3 access limited to required prefixes
+- SQS permissions limited to the appropriate processing queues
 
 ## Processing and resilience controls
--Event-driven S3-to-SQS workflow
--Separate preprocessing and extraction queues
--Dead-letter queues
--Controlled retry behaviour
--Status transitions stored in Supabase
+- Event-driven S3-to-SQS workflow
+- Separate preprocessing and extraction queues
+- Dead-letter queues
+- Controlled retry behaviour
+- Status transitions stored in Supabase
 
 ## Logging and traceability controls
--Structured CloudWatch logs
--Trace IDs across processing stages
--Supabase audit events
--Processing-run records
--No document contents intentionally written to CloudWatch
+- Structured CloudWatch logs
+- Trace IDs across processing stages
+- Supabase audit events
+- Processing-run records
+- No document contents intentionally written to CloudWatch
 
 ### Mock Extraction Rationale
 The mock extraction adapter was introduced to test the pipeline independently of model availability, billing requirements and model-specific behaviour.
 
 It validates:
 
--SQS-to-Lambda orchestration
--Processing-run creation
--Extraction-result persistence
--Confidence-score handling
--Document-status transitions
--Human-review flags
--Audit-event creation
--CloudWatch trace continuity
+- SQS-to-Lambda orchestration
+- Processing-run creation
+- Extraction-result persistence
+- Confidence-score handling
+- Document-status transitions
+- Human-review flags
+- Audit-event creation
+- CloudWatch trace continuity
 
 The mock output is not presented as evidence of real AI extraction accuracy.
 
@@ -128,44 +128,44 @@ The extraction Lambda successfully reached the Textract API call, but AWS return
 Following project-lead guidance, paid model execution has been deferred until suitable credentials are provided.
 The next model-related deliverable is therefore to document:
 
--The selected Bedrock or SageMaker model
--Model-selection criteria
--Proposed invocation workflow
--Required IAM permissions
--Secure extraction prompt
--Expected JSON output schema
--Test dataset and evaluation metrics
--NIST CSF 2.0 Alignment
+- The selected Bedrock or SageMaker model
+- Model-selection criteria
+- Proposed invocation workflow
+- Required IAM permissions
+- Secure extraction prompt
+- Expected JSON output schema
+- Test dataset and evaluation metrics
+- NIST CSF 2.0 Alignment
 
 The framework is being organised around the six NIST CSF 2.0 Functions:
 
--Govern
--Identify
--Protect
--Detect
--Respond
--Recover
+- Govern
+- Identify
+- Protect
+- Detect
+- Respond
+- Recover
 
 The existing function-level mapping will be extended into:
 
--A Current Profile
--A Target Profile
--A security gap analysis
--A prioritised implementation plan
--Evidence references
--Residual-risk documentation
+- A Current Profile
+- A Target Profile
+- A security gap analysis
+- A prioritised implementation plan
+- Evidence references
+- Residual-risk documentation
 
 ### Evidence Handling
 
 Implementation screenshots are primarily stored in a private local evidence folder.
 The public repository does not intentionally contain:
 
--AWS access keys
--Supabase service-role keys
--Environment files
--Complete pre-signed URLs
--Real financial documents
--Screenshots exposing sensitive account or credential details
+- AWS access keys
+- Supabase service-role keys
+- Environment files
+- Complete pre-signed URLs
+- Real financial documents
+- Screenshots exposing sensitive account or credential details
 
 The public docs/evidence/README.md file provides an evidence index without publishing confidential configuration.
 
