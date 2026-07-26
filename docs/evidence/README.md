@@ -77,3 +77,81 @@ capstone-evidence-private/
   stage-1-secure-upload/
   stage-2-supabase-audit/
   stage-3-event-driven-preprocessing/
+```
+## Stage 4 — Mock Extraction Pipeline
+
+### Objective
+
+Validate the extraction-stage orchestration independently of paid model access. This stage tested the extraction queue, Lambda processing, result persistence, confidence handling, document-status updates, audit logging and CloudWatch traceability.
+
+### Evidence
+
+| Evidence file | Description |
+|---|---|
+| `stage-4/01-extraction-queue-and-dlq.png` | Extraction SQS queue and associated dead-letter queue |
+| `stage-4/02-extraction-lambda-sqs-trigger.png` | Extraction queue configured as the Lambda trigger |
+| `stage-4/03-extraction-lambda-code-deployed.png` | Mock extraction Lambda implementation deployed |
+| `stage-4/04-extraction-lambda-iam-policy.png` | Least-privilege extraction Lambda permissions |
+| `stage-4/05-supabase-processing-run.png` | Processing-run record created for the extraction operation |
+| `stage-4/06-supabase-extraction-result.png` | Structured mock extraction result stored in Supabase |
+| `stage-4/07-supabase-document-status.png` | Document lifecycle status updated after extraction |
+| `stage-4/08-supabase-audit-events.png` | Extraction lifecycle events recorded in the audit table |
+| `stage-4/09-cloudwatch-extraction-trace.png` | Structured CloudWatch log containing the trace ID and extraction result |
+
+### Outcome
+
+The extraction queue and Lambda were successfully integrated with the existing preprocessing workflow.
+
+The stage demonstrated:
+
+- Extraction-message consumption from SQS
+- Processing-run creation
+- Structured-result persistence
+- Field and overall confidence storage
+- `needs_human_review` readiness
+- Document-status transitions
+- Audit-event creation
+- Trace-ID continuity
+
+The mock output was used only for deterministic pipeline and security-control testing. It is not presented as evidence of real AI extraction accuracy.
+
+---
+
+## Stage 5A — Real AWS Extraction Integration Attempt
+
+### Objective
+
+Replace the mock extraction adapter with an AWS-native receipt and invoice extraction service.
+
+Amazon Textract `AnalyzeExpense` was selected for the initial integration attempt because it supports structured extraction of receipt and invoice fields.
+
+### Evidence
+
+| Evidence file | Description |
+|---|---|
+| `stage-5a/01-textract-iam-permission.png` | Extraction Lambda permission for `textract:AnalyzeExpense` |
+| `stage-5a/02-textract-extraction-code-deployed.png` | Textract adapter deployed in the extraction Lambda |
+| `stage-5a/03-cloudwatch-subscription-required-error.png` | CloudWatch error showing `SubscriptionRequiredException` |
+| `stage-5a/04-aws-free-plan-access-limitation.png` | AWS console page showing free-account service limitations |
+| `stage-5a/05-project-lead-model-guidance.txt` | Sanitised record of the decision to defer paid model execution |
+
+### Outcome
+
+The AWS event-driven pipeline successfully reached the Amazon Textract API call. The request was rejected with:
+
+```text
+SubscriptionRequiredException
+```
+The AWS console confirmed that the current free account plan restricts access to the required service. Therefore, the failure was caused by an account-level service limitation rather than the SQS trigger, Lambda invocation flow or extraction-adapter control path.
+
+Following project-lead guidance, paid model execution has been deferred until billing-enabled project credentials are available.
+
+The next model-related tasks are:
+
+- Select a suitable Amazon Bedrock model
+- Identify a SageMaker alternative
+- Define the secure model-invocation workflow
+- Prepare the IAM policy template
+- Prepare the extraction prompt and JSON schema
+- Define the real-model evaluation plan
+
