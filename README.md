@@ -70,13 +70,13 @@ Implementation Status
 
 ### Implemented Security Controls
 ## Upload and API controls
--File-type and extension validation
--Maximum file-size validation
--Filename sanitisation
--Short-lived S3 pre-signed URLs
--Configurable CORS origin
--UUID-based document identifiers
--Structured and non-public S3 object paths
+- File-type and extension validation
+- Maximum file-size validation
+- Filename sanitisation
+- Short-lived S3 pre-signed URLs
+- Configurable CORS origin
+- UUID-based document identifiers
+- Structured and non-public S3 object paths
 
 ## Storage controls
 -S3 Block Public Access
