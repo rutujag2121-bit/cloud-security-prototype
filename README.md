@@ -68,8 +68,8 @@ Implementation Status
 | Threat and risk assessment     | Planned               | STRIDE-based threat modelling and a prioritised risk register will be added                              |
 | Security evaluation matrix     | Planned               | Security tests will be mapped to NIST CSF 2.0 and FRD requirements                                       |
 
-###Implemented Security Controls
-##Upload and API controls
+### Implemented Security Controls
+## Upload and API controls
 -File-type and extension validation
 -Maximum file-size validation
 -Filename sanitisation
@@ -78,33 +78,33 @@ Implementation Status
 -UUID-based document identifiers
 -Structured and non-public S3 object paths
 
-##Storage controls
+## Storage controls
 -S3 Block Public Access
 -Server-side encryption
 -Restricted raw/ storage prefix
 -No credentials or pre-signed URLs committed to GitHub
 
-##Identity and access controls
+## Identity and access controls
 -Separate Lambda execution roles
 -Least-privilege IAM policy templates
 -S3 access limited to required prefixes
 -SQS permissions limited to the appropriate processing queues
 
-##Processing and resilience controls
+## Processing and resilience controls
 -Event-driven S3-to-SQS workflow
 -Separate preprocessing and extraction queues
 -Dead-letter queues
 -Controlled retry behaviour
 -Status transitions stored in Supabase
 
-##Logging and traceability controls
+## Logging and traceability controls
 -Structured CloudWatch logs
 -Trace IDs across processing stages
 -Supabase audit events
 -Processing-run records
 -No document contents intentionally written to CloudWatch
 
-###Mock Extraction Rationale
+### Mock Extraction Rationale
 The mock extraction adapter was introduced to test the pipeline independently of model availability, billing requirements and model-specific behaviour.
 
 It validates:
@@ -155,7 +155,7 @@ The existing function-level mapping will be extended into:
 -Evidence references
 -Residual-risk documentation
 
-###Evidence Handling
+### Evidence Handling
 
 Implementation screenshots are primarily stored in a private local evidence folder.
 The public repository does not intentionally contain:
@@ -169,5 +169,5 @@ The public repository does not intentionally contain:
 
 The public docs/evidence/README.md file provides an evidence index without publishing confidential configuration.
 
-###Current Limitation
+### Current Limitation
 The current prototype demonstrates the secured AWS pipeline and mock-based extraction orchestration. It does not claim successful real-model extraction, production readiness, complete GDPR compliance or a completed human-review interface.
