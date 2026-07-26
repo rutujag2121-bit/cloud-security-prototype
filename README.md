@@ -43,7 +43,7 @@ Client or API test
 → Supabase processing and audit records
 → CloudWatch structured logs
 ```
-Implementation Status
+## Implementation Status
 | Component                      | Status                | Description                                                                                              |
 | ------------------------------ | --------------------- | -------------------------------------------------------------------------------------------------------- |
 | API Gateway `/upload` endpoint | Implemented           | Receives document metadata and invokes the upload Lambda                                                 |
@@ -68,8 +68,8 @@ Implementation Status
 | Threat and risk assessment     | Planned               | STRIDE-based threat modelling and a prioritised risk register will be added                              |
 | Security evaluation matrix     | Planned               | Security tests will be mapped to NIST CSF 2.0 and FRD requirements                                       |
 
-### Implemented Security Controls
-## Upload and API controls
+## Implemented Security Controls
+### Upload and API controls
 - File-type and extension validation
 - Maximum file-size validation
 - Filename sanitisation
@@ -78,26 +78,26 @@ Implementation Status
 - UUID-based document identifiers
 - Structured and non-public S3 object paths
 
-## Storage controls
+### Storage controls
 - S3 Block Public Access
 - Server-side encryption
 - Restricted raw/ storage prefix
 - No credentials or pre-signed URLs committed to GitHub
 
-## Identity and access controls
+### Identity and access controls
 - Separate Lambda execution roles
 - Least-privilege IAM policy templates
 - S3 access limited to required prefixes
 - SQS permissions limited to the appropriate processing queues
 
-## Processing and resilience controls
+### Processing and resilience controls
 - Event-driven S3-to-SQS workflow
 - Separate preprocessing and extraction queues
 - Dead-letter queues
 - Controlled retry behaviour
 - Status transitions stored in Supabase
 
-## Logging and traceability controls
+### Logging and traceability controls
 - Structured CloudWatch logs
 - Trace IDs across processing stages
 - Supabase audit events
@@ -120,7 +120,7 @@ It validates:
 
 The mock output is not presented as evidence of real AI extraction accuracy.
 
-###Real Model Integration Status
+## Real Model Integration Status
 
 Amazon Textract AnalyzeExpense was investigated as an AWS-native receipt and invoice extraction service.
 The extraction Lambda successfully reached the Textract API call, but AWS returned a SubscriptionRequiredException. The AWS console confirmed that the current free account plan restricts access to the required service.
@@ -135,8 +135,8 @@ The next model-related deliverable is therefore to document:
 - Secure extraction prompt
 - Expected JSON output schema
 - Test dataset and evaluation metrics
-- NIST CSF 2.0 Alignment
 
+ ## NIST CSF 2.0 Alignment
 The framework is being organised around the six NIST CSF 2.0 Functions:
 
 - Govern
@@ -155,7 +155,49 @@ The existing function-level mapping will be extended into:
 - Evidence references
 - Residual-risk documentation
 
-### Evidence Handling
+## Remaining Capstone Work
+
+The remaining work focuses on security evaluation and framework validation rather than adding unrelated cloud services.
+
+Priority deliverables are:
+
+1. Select and document the proposed Bedrock or SageMaker model.
+2. Create a formal threat model and risk register.
+3. Develop the NIST CSF 2.0 Current and Target Profiles.
+4. Implement post-processing validation.
+5. Demonstrate low-confidence human-review routing.
+6. Configure CloudWatch alarms and document the DLQ response procedure.
+7. Run a controlled security test matrix.
+8. Map the implementation and test results to the NIST CSF 2.0 and FRD security requirements.
+9. Use the implementation and evaluation findings in the final research paper.
+
+## Repository Structure
+
+```text
+api-gateway/
+    API Gateway configuration documentation
+
+database/
+    Supabase database schemas
+
+docs/
+    Stage documentation, progress logs, framework mapping and evidence index
+
+lambda/
+    upload/
+    preprocess/
+    extraction/
+
+security/
+    IAM policy templates and security-control documentation
+
+test-events/
+    Valid and invalid Lambda and SQS test events
+
+README.md
+```
+
+## Evidence Handling
 
 Implementation screenshots are primarily stored in a private local evidence folder.
 The public repository does not intentionally contain:
@@ -169,5 +211,5 @@ The public repository does not intentionally contain:
 
 The public docs/evidence/README.md file provides an evidence index without publishing confidential configuration.
 
-### Current Limitation
+## Current Limitation
 The current prototype demonstrates the secured AWS pipeline and mock-based extraction orchestration. It does not claim successful real-model extraction, production readiness, complete GDPR compliance or a completed human-review interface.
