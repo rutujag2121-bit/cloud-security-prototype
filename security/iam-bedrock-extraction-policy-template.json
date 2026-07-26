@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowExtractionQueueProcessing",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "arn:aws:sqs:ap-southeast-2:<AWS_ACCOUNT_ID>:<EXTRACTION_QUEUE_NAME>"
+    },
+    {
+      "Sid": "AllowReadRawDocuments",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::<DOCUMENT_BUCKET_NAME>/raw/*"
+    },
+    {
+      "Sid": "AllowNovaLiteInvocation",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": "arn:aws:bedrock:ap-southeast-2::foundation-model/amazon.nova-lite-v1:0"
+    },
+    {
+      "Sid": "AllowExtractionLambdaLogging",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:ap-southeast-2:<AWS_ACCOUNT_ID>:log-group:/aws/lambda/<EXTRACTION_LAMBDA_NAME>:*"
+    }
+  ]
+}
