@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"documentId\":\"REPLACE_DOCUMENT_ID\",\"userId\":\"REPLACE_USER_ID\",\"companyId\":\"REPLACE_COMPANY_ID\",\"objectKey\":\"raw/stage5c/receipt-low-confidence.pdf\",\"traceId\":\"stage5c-low-confidence-test\"}"
+    }
+  ]
+}
