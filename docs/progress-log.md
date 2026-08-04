@@ -287,12 +287,6 @@ The extraction stage was deliberately designed as a replaceable provider adapter
 - Implement post-processing and low-confidence routing tests.
 - Complete the security evaluation by 30 July 2026.
 
-# Progress Log Insert — Stages 5A and 5B
-
-Add this block to `docs/progress-log.md` immediately before the existing Stage 5C section.
-
----
-
 ## Stage 5A: Real Model Service Attempt and Constraint Analysis
 
 ### Work completed
