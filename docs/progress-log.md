@@ -287,6 +287,64 @@ The extraction stage was deliberately designed as a replaceable provider adapter
 - Implement post-processing and low-confidence routing tests.
 - Complete the security evaluation by 30 July 2026.
 
+# Progress Log Insert — Stages 5A and 5B
+
+Add this block to `docs/progress-log.md` immediately before the existing Stage 5C section.
+
+---
+
+## Stage 5A: Real Model Service Attempt and Constraint Analysis
+
+### Work completed
+
+- Investigated Amazon Textract `AnalyzeExpense` for real receipt and invoice extraction.
+- Prepared the extraction Lambda to reach the managed-service invocation point.
+- Preserved the existing S3, SQS, Supabase, audit and CloudWatch workflow.
+- Executed the service attempt.
+- Recorded the resulting `SubscriptionRequiredException`.
+- Confirmed that the AWS account plan restricted the required paid-service access.
+- Obtained project-lead approval to defer paid-model execution.
+
+### Result
+
+The extraction pipeline reached the real AWS service boundary, but no real extraction result was produced because service access was blocked by the account plan.
+
+### Security and architectural value
+
+- Confirmed that the provider can remain isolated behind the extraction Lambda.
+- Preserved the existing event-driven pipeline.
+- Identified service availability and billing as operational dependencies.
+- Established that real model output must still pass independent validation.
+
+### Limitation
+
+This stage does not demonstrate Textract accuracy or successful real-model execution.
+
+---
+
+## Stage 5B: Secure AI Model Adapter Design
+
+### Work completed
+
+- Selected Amazon Nova Lite as the proposed Bedrock model for later credential-based testing.
+- Identified a SageMaker-hosted document model as an alternative.
+- Prepared a least-privilege Bedrock IAM policy template.
+- Prepared a secure receipt and invoice extraction prompt.
+- Prepared a strict JSON extraction schema.
+- Defined the extraction Lambda as the replaceable provider-adapter boundary.
+- Defined the Bedrock invocation and Stage 5C validation flow.
+- Defined a bounded real-model test and evaluation plan.
+
+### Result
+
+The secure model-integration design is complete and can be tested when suitable AWS credentials are available.
+
+### Limitation
+
+The design artefacts have not been deployed against a real Bedrock or SageMaker model, and model accuracy has not been evaluated.
+
+---
+
 ## Stage 5C: Post-processing Validation and HITL Routing
 
 ### Work completed
