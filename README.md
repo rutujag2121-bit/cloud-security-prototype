@@ -44,29 +44,30 @@ Client or API test
 → CloudWatch structured logs
 ```
 ## Implementation Status
-| Component                      | Status                | Description                                                                                              |
-| ------------------------------ | --------------------- | -------------------------------------------------------------------------------------------------------- |
-| API Gateway `/upload` endpoint | Implemented           | Receives document metadata and invokes the upload Lambda                                                 |
-| Upload Lambda                  | Implemented           | Validates metadata and generates short-lived S3 pre-signed upload URLs                                   |
-| File validation                | Implemented           | Supports PDF, JPEG and PNG with a 10 MB maximum size                                                     |
-| Filename sanitisation          | Implemented           | Reduces unsafe object-name handling                                                                      |
-| Private S3 storage             | Implemented           | Block Public Access and server-side encryption are enabled                                               |
-| Structured S3 object keys      | Implemented           | Documents are organised using company, user and document identifiers                                     |
-| Supabase document tracking     | Implemented           | Stores document metadata, status and trace identifiers                                                   |
-| Supabase audit logging         | Implemented           | Stores business-level lifecycle and security events                                                      |
-| Pre-processing SQS and DLQ     | Implemented           | Provides asynchronous buffering, retries and failure isolation                                           |
-| Pre-processing Lambda          | Implemented           | Validates uploaded S3 objects before extraction                                                          |
-| Extraction SQS and DLQ         | Implemented           | Separates preprocessing from extraction processing                                                       |
-| Extraction Lambda              | Implemented           | Creates processing runs, extraction results and confidence metadata                                      |
-| Mock extraction adapter        | Implemented           | Used for deterministic orchestration and security testing                                                |
-| HITL readiness flag            | Partially implemented | Low-confidence results can be marked for human review; detailed validation testing remains               |
-| NIST CSF 2.0 mapping           | Partially implemented | Initial mapping exists; Current and Target Profiles remain to be completed                               |
-| Real AWS model execution       | Deferred              | Textract integration reached the service call but was blocked by the current AWS account plan            |
-| Bedrock or SageMaker model     | Planned               | A specific model, prompt, IAM policy and test plan will be documented for later credential-based testing |
-| Post-processing validation     | Planned               | Schema, date, currency and financial-consistency checks will be implemented                              |
-| CloudWatch alarms              | Planned               | Lambda-error and DLQ-message alarms will be configured                                                   |
-| Threat and risk assessment     | Planned               | STRIDE-based threat modelling and a prioritised risk register will be added                              |
-| Security evaluation matrix     | Planned               | Security tests will be mapped to NIST CSF 2.0 and FRD requirements                                       |
+| Component                      | Status                | Description                                                                                                            |
+| ------------------------------ | --------------------- | -----------------------------------------------------------------------------------------------------------------------|
+| API Gateway `/upload` endpoint | Implemented           | Receives document metadata and invokes the upload Lambda                                                               |
+| Upload Lambda                  | Implemented           | Validates metadata and generates short-lived S3 pre-signed upload URLs                                                 |
+| File validation                | Implemented           | Supports PDF, JPEG and PNG with a 10 MB maximum size                                                                   |
+| Filename sanitisation          | Implemented           | Reduces unsafe object-name handling                                                                                    |
+| Private S3 storage             | Implemented           | Block Public Access and server-side encryption are enabled                                                             |
+| Structured S3 object keys      | Implemented           | Documents are organised using company, user and document identifiers                                                   |
+| Supabase document tracking     | Implemented           | Stores document metadata, status and trace identifiers                                                                 |
+| Supabase audit logging         | Implemented           | Stores business-level lifecycle and security events                                                                    |
+| Pre-processing SQS and DLQ     | Implemented           | Provides asynchronous buffering, retries and failure isolation                                                         |
+| Pre-processing Lambda          | Implemented           | Validates uploaded S3 objects before extraction                                                                        |
+| Extraction SQS and DLQ         | Implemented           | Separates preprocessing from extraction processing                                                                     |
+| Extraction Lambda              | Implemented           | Creates processing runs, extraction results and confidence metadata                                                    |
+| Mock extraction adapter        | Implemented           | Used for deterministic orchestration and security testing                                                              |
+| HITL backend routing           | Implemented           | Review tasks are created for low-confidence, incomplete, inconsistent, suspicious or malformed outputs                 |
+| Post-processing validation     | Implemented           | Validates schema, required fields, dates, currencies, financial totals, line-item sums and prompt-injection indicators |
+| Stage 5C security scenarios    | Implemented           | Valid, low-confidence, missing-field, financial-mismatch, prompt-injection and malformed-output cases tested           |
+| Threat and risk assessment     | Implemented           | STRIDE threat model and prioritised risk register are documented                                                       |
+| NIST CSF 2.0 mapping           | Partially implemented | Initial mapping exists; Current and Target Profiles remain to be completed                                             |
+| Real AWS model execution       | Deferred              | Textract reached the service call but was blocked by the AWS account plan                                              |
+| Bedrock or SageMaker model     | Designed              | Proposed model, prompt, schema and IAM design are documented for credential-based testing                              |
+| CloudWatch alarms              | Planned               | Lambda-error and DLQ-message alarms remain to be configured                                                            |
+| Security evaluation matrix     | In progress           | Stage 5C results are complete; remaining security controls must be evaluated                                           |
 
 ## Implemented Security Controls
 ### Upload and API controls
@@ -103,6 +104,18 @@ Client or API test
 - Supabase audit events
 - Processing-run records
 - No document contents intentionally written to CloudWatch
+
+### Post-processing and AI-output controls
+- Versioned extraction schema
+- Required-field and type validation
+- ISO date and currency-format validation
+- Financial-total and line-item consistency checks
+- Overall and field-level confidence thresholds
+- Prompt-injection indicator detection
+- Malformed-output rejection
+- Human-review task creation and prioritisation
+- Validation evidence stored in Supabase
+- Post-processing audit and CloudWatch traceability
 
 ### Mock Extraction Rationale
 The mock extraction adapter was introduced to test the pipeline independently of model availability, billing requirements and model-specific behaviour.
@@ -156,21 +169,14 @@ The existing function-level mapping will be extended into:
 - Residual-risk documentation
 
 ## Remaining Capstone Work
-
-The remaining work focuses on security evaluation and framework validation rather than adding unrelated cloud services.
-
-Priority deliverables are:
-
-1. Select and document the proposed Bedrock or SageMaker model.
-2. Create a formal threat model and risk register.
-3. Develop the NIST CSF 2.0 Current and Target Profiles.
-4. Implement post-processing validation.
-5. Demonstrate low-confidence human-review routing.
-6. Configure CloudWatch alarms and document the DLQ response procedure.
-7. Run a controlled security test matrix.
-8. Map the implementation and test results to the NIST CSF 2.0 and FRD security requirements.
-9. Use the implementation and evaluation findings in the final research paper.
-
+1. Configure CloudWatch alarms for Lambda errors and DLQ messages.
+2. Document and test the DLQ investigation and replay procedure.
+3. Implement a controlled retention and secure-deletion workflow.
+4. Define and test tenant-aware Supabase RLS requirements.
+5. Complete the NIST CSF 2.0 Current and Target Profiles.
+6. Complete the security evaluation matrix.
+7. Perform a bounded real-model experiment when suitable credentials are available.
+8. Use the implementation and evaluation findings in the final research paper.
 ## Repository Structure
 
 ```text
