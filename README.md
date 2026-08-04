@@ -213,3 +213,51 @@ The public docs/evidence/README.md file provides an evidence index without publi
 
 ## Current Limitation
 The current prototype demonstrates the secured AWS pipeline and mock-based extraction orchestration. It does not claim successful real-model extraction, production readiness, complete GDPR compliance or a completed human-review interface.
+
+# README Stage 5C Update
+
+Apply these edits to the main `README.md`.
+
+## Replace these implementation-status rows
+
+```markdown
+| HITL backend routing | Implemented | Review tasks are created for low-confidence, incomplete, inconsistent, suspicious or malformed outputs |
+| Post-processing validation | Implemented | Validates schema, required fields, dates, currencies, financial totals, line-item sums and prompt-injection indicators |
+| Stage 5C security scenarios | Implemented | Valid, low-confidence, missing-field, financial-mismatch, prompt-injection and malformed-output cases tested |
+| NIST CSF 2.0 mapping | Partially implemented | Initial mapping exists; Current and Target Profiles remain to be completed |
+| Real AWS model execution | Deferred | Textract reached the service call but was blocked by the AWS account plan |
+| CloudWatch alarms | Planned | Lambda-error and DLQ-message alarms remain to be configured |
+| Security evaluation matrix | In progress | Stage 5C results are complete; remaining controls must be evaluated |
+```
+
+## Add under Implemented Security Controls
+
+```markdown
+### Post-processing and AI-output controls
+
+- Versioned extraction schema
+- Required-field and type validation
+- ISO date and currency-format validation
+- Financial-total and line-item consistency checks
+- Overall and field-level confidence thresholds
+- Prompt-injection indicator detection
+- Malformed-output rejection
+- Human-review task creation and prioritisation
+- Validation evidence stored in Supabase
+- Post-processing audit and CloudWatch traceability
+```
+
+## Update Remaining Capstone Work
+
+Remove post-processing implementation and low-confidence routing from the pending list.
+
+The next priorities are:
+
+1. Configure CloudWatch alarms for Lambda errors and DLQ messages.
+2. Document and test the DLQ investigation and replay procedure.
+3. Implement one controlled data-retention and secure-deletion workflow.
+4. Define tenant-aware Supabase RLS requirements.
+5. Complete the NIST CSF 2.0 Current and Target Profiles.
+6. Build the final security evaluation matrix.
+7. Run a bounded real-model experiment when credentials are available.
+8. Use the implementation and evaluation findings in the final paper.
