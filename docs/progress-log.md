@@ -202,7 +202,7 @@ Next steps:
 
 ---
 
-## 20 July 2026 — Stage 4: Mock Extraction Pipeline
+## Stage 4: Mock Extraction Pipeline
 
 ### Work completed
 
@@ -286,3 +286,28 @@ The extraction stage was deliberately designed as a replaceable provider adapter
 - Extend the NIST CSF 2.0 mapping into Current and Target Profiles.
 - Implement post-processing and low-confidence routing tests.
 - Complete the security evaluation by 30 July 2026.
+
+## Stage 5C: Post-processing Validation and HITL Routing
+
+### Work completed
+
+- Extended `extraction_results` with validation status, validation errors, review reasons, schema version and validation timestamp.
+- Created the `review_tasks` table for Human-in-the-Loop workflow tracking.
+- Enabled Row Level Security on the review-task table.
+- Updated the extraction Lambda with deterministic schema, date, currency, monetary and line-item validation.
+- Added financial consistency checks for subtotal, tax, total and line-item sums.
+- Added overall and field-level confidence routing.
+- Added prompt-injection indicator detection.
+- Added malformed-output handling.
+- Added medium- and high-priority review-task creation.
+- Added post-processing and HITL audit events.
+- Added safe structured CloudWatch validation logs.
+- Tested valid, low-confidence, missing-field, financial-mismatch, prompt-injection and malformed-output scenarios.
+
+### Result
+
+Valid output completed automatically. Every risky scenario was prevented from automatic completion and routed to Human-in-the-Loop review with validation evidence, priority and audit traceability.
+
+### Limitation
+
+The tests use a deterministic mock extraction adapter. They validate security-control behaviour and orchestration, not real-model extraction accuracy.
