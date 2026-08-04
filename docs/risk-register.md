@@ -80,3 +80,41 @@ The risk register will be updated after:
 - Monitoring configuration
 - NIST Current and Target Profile analysis
 - Final security evaluation
+
+# Risk Register Stage 5C Update
+
+Update the relevant rows in `docs/risk-register.md`.
+
+## R-11 Prompt injection
+
+Current controls should include:
+
+```text
+Fixed prompt design, document-as-untrusted-data handling, pattern-based prompt-injection indicator detection and high-priority HITL routing
+```
+
+Residual risk remains because pattern matching cannot identify all adversarial prompts and real-model testing is still pending.
+
+## R-12 Invalid or hallucinated values
+
+Current controls should include:
+
+```text
+Versioned schema validation, required-field checks, date/currency validation, financial-total checks, line-item consistency checks, invalid-output handling and high-priority HITL routing
+```
+
+Reduce the residual score only if your paper explains the basis for the revised likelihood and impact. Do not reduce impact merely because controls exist.
+
+## R-13 Low-confidence bypass
+
+Current controls should include:
+
+```text
+Overall confidence threshold, field-level confidence checks, model uncertainty fields, deterministic low-confidence test and review-task creation
+```
+
+The deterministic test result can be marked completed.
+
+## Priority order
+
+Mark R-12 implementation as completed and move monitoring, DLQ response, retention, tenant isolation and secret management to the next implementation priorities.
