@@ -363,3 +363,32 @@ Valid output completed automatically. Every risky scenario was prevented from au
 ### Limitation
 
 The tests use a deterministic mock extraction adapter. They validate security-control behaviour and orchestration, not real-model extraction accuracy.
+
+## Stage 6: Monitoring, Alerting and Incident Response
+
+### Work completed
+
+- Created the `capisso-security-alerts` SNS topic.
+- Confirmed the email subscription and manual SNS delivery.
+- Created Lambda error alarms for upload, preprocessing and extraction.
+- Created visible-message alarms for preprocessing and extraction DLQs.
+- Tested a controlled extraction Lambda failure.
+- Diagnosed a CloudWatch-to-SNS KMS authorization failure.
+- Remediated the prototype notification path and confirmed email delivery.
+- Tested a controlled message placed directly into the extraction DLQ.
+- Tested an invalid message sent to the extraction main queue.
+- Confirmed repeated Lambda failures and automatic retry exhaustion.
+- Confirmed automatic movement to the extraction DLQ.
+- Confirmed Lambda and DLQ alarm notifications.
+- Removed the controlled poison message.
+- Confirmed alarm recovery.
+- Created a DLQ investigation and safe replay runbook.
+
+### Result
+
+The prototype now detects Lambda failures and exhausted SQS retries, sends email notifications, supports structured investigation and documents safe replay and recovery decisions.
+
+### Limitations
+
+Alarm configuration is manual, email is the only notification channel, SNS encryption is disabled in the prototype and idempotent replay protection remains future work.
+
