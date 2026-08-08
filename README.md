@@ -44,7 +44,8 @@ Client or API test
 | 5A | Real model service attempt | Attempted; blocked by AWS account restrictions |
 | 5B | Secure AI model adapter design | Design completed; real invocation deferred |
 | 5C | Post-processing validation and HITL routing | Completed and tested |
-| 6 | Monitoring, alerting and incident response | Next implementation stage |
+| 6 | Monitoring, alerting and incident response | Completed and tested |
+| 7 | Retention and secure deletion | Next implementation stage |
 
 ## Implementation Status
 
@@ -74,6 +75,11 @@ Client or API test
 | Secure deletion workflow | Planned | Retention and deletion controls remain |
 | Tenant-aware RLS | Planned | Backend RLS is enabled; tenant policies remain |
 | Security evaluation matrix | In progress | Stage 5C evidence is complete |
+| SNS security notification channel | Implemented | Confirmed email delivery for CloudWatch alarms |
+| Lambda error monitoring | Implemented | Upload, preprocessing and extraction error alarms |
+| DLQ monitoring | Implemented | Preprocessing and extraction visible-message alarms |
+| Retry-exhaustion test | Completed | Invalid extraction message moved automatically to the DLQ |
+| Incident-response runbook | Implemented | Investigation, replay decision and recovery procedure documented |
 
 ## Implemented Security Controls
 
