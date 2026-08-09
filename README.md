@@ -45,7 +45,8 @@ Client or API test
 | 5B | Secure AI model adapter design | Design completed; real invocation deferred |
 | 5C | Post-processing validation and HITL routing | Completed and tested |
 | 6 | Monitoring, alerting and incident response | Completed and tested |
-| 7 | Retention and secure deletion | Next implementation stage |
+| 7 | Retention and secure deletion | Completed and tested |
+| 8 | Access, secret and API-abuse hardening | Next implementation stage |
 
 ## Implementation Status
 
@@ -71,8 +72,11 @@ Client or API test
 | Stage 5C security scenarios | Tested | Six deterministic validation scenarios completed |
 | Threat and risk assessment | Implemented | STRIDE threat model and prioritised risk register documented |
 | NIST CSF 2.0 mapping | Partially implemented | Current and Target Profiles remain |
-| CloudWatch alarms | Planned | Lambda-error and DLQ-message alarms are next |
-| Secure deletion workflow | Planned | Retention and deletion controls remain |
+| CloudWatch alarms | Implemented | Lambda-error, DLQ-message and retention alarms are configured |
+| Secure deletion workflow | Implemented | Manual deletion, retention expiry, S3/database cleanup and tombstone evidence tested |
+| Retention enforcement Lambda | Implemented | Selects enabled expired records and delegates deletion |
+| EventBridge retention schedule | Implemented | Daily automatic scan with Scheduler DLQ |
+| Retention safety controls | Tested | Premature deletion rejection and historical-record protection verified |
 | Tenant-aware RLS | Planned | Backend RLS is enabled; tenant policies remain |
 | Security evaluation matrix | In progress | Stage 5C evidence is complete |
 | SNS security notification channel | Implemented | Confirmed email delivery for CloudWatch alarms |
@@ -135,6 +139,23 @@ Client or API test
 - Validation evidence stored in Supabase
 - Post-processing audit traceability
 
+### Retention and secure-deletion controls
+
+- Configurable retention deadline and policy metadata
+- Historical-record automatic-deletion safety flag
+- Dedicated secure-deletion Lambda
+- S3 deletion restricted to `raw/`
+- S3 deletion verification
+- Cascade deletion of processing data
+- Audit metadata redaction
+- Minimal SHA-256 deletion tombstone
+- Sanitised `SECURE_DELETION_COMPLETED` event
+- Idempotent repeat-deletion handling
+- Independent retention-expiry validation
+- Separate retention-enforcement Lambda
+- Daily EventBridge Scheduler scan
+- Scheduler delivery DLQ and CloudWatch monitoring
+
 ## AI Model Integration
 
 ### Stage 5A — Real-service attempt
@@ -184,16 +205,13 @@ The remaining framework work includes a Current Profile, Target Profile, gap ana
 
 ## Remaining Capstone Work
 
-1. Configure CloudWatch alarms for Lambda errors and DLQ messages.
-2. Document and test the DLQ investigation and replay procedure.
-3. Implement a controlled retention and secure-deletion workflow.
-4. Strengthen secret-management and rotation guidance.
-5. Define and test tenant-aware Supabase RLS requirements.
-6. Configure API Gateway throttling and abuse controls.
-7. Complete the NIST CSF 2.0 Current and Target Profiles.
-8. Complete the security evaluation matrix.
-9. Run a bounded real-model experiment when suitable credentials are available.
-10. Use the implementation and evaluation findings in the final research paper.
+1. Strengthen secret-management and rotation controls.
+2. Define and test tenant-aware Supabase RLS.
+3. Configure API Gateway throttling and abuse controls.
+4. Complete the NIST CSF 2.0 Current and Target Profiles.
+5. Complete the consolidated security evaluation matrix.
+6. Run a bounded real-model experiment if suitable credentials become available.
+7. Use the implementation and evaluation findings in the final research paper.
 
 ## Repository Structure
 
@@ -205,6 +223,8 @@ lambda/
     upload/
     preprocess/
     extraction/
+    deletion/
+    retention/
 prompts/
 security/
 test-events/
