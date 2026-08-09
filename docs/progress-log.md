@@ -392,3 +392,32 @@ The prototype now detects Lambda failures and exhausted SQS retries, sends email
 
 Alarm configuration is manual, email is the only notification channel, SNS encryption is disabled in the prototype and idempotent replay protection remains future work.
 
+## Stage 7: Retention and Secure Deletion
+
+### Work completed
+- Added retention metadata and a controlled automatic-enforcement flag.
+- Created the deletion tombstone table.
+- Created a dedicated secure-deletion Lambda.
+- Restricted deletion IAM to the S3 `raw/` prefix.
+- Tested malformed and unknown deletion requests.
+- Tested end-to-end deletion of a disposable document.
+- Verified S3 deletion and database cascade cleanup.
+- Redacted identifying audit metadata.
+- Preserved a minimal deletion tombstone and sanitised completion event.
+- Tested idempotent repeated deletion handling.
+- Added independent retention-expiry validation.
+- Created a separate retention-enforcement Lambda.
+- Tested rejection of premature retention deletion.
+- Simulated an expired deadline and confirmed secure deletion.
+- Protected historical evidence from automatic deletion.
+- Created a retention Lambda error alarm.
+- Created an EventBridge Scheduler delivery DLQ and alarm.
+- Tested automatic Scheduler invocation.
+- Changed the final retention schedule to `rate(1 day)`.
+
+### Result
+Manual secure deletion and automatic retention enforcement are implemented and tested. Destructive S3 access is isolated to the deletion Lambda, deletion is verified, associated processing data is removed, audit metadata is minimised and operational evidence is preserved.
+
+### Limitations
+The 30-day interval is a prototype setting. Supabase service-role credentials remain in Lambda environment variables pending Stage 8. Production legal-policy selection, S3 version handling and infrastructure-as-code remain future work.
+
