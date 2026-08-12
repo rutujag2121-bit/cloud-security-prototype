@@ -421,3 +421,37 @@ Manual secure deletion and automatic retention enforcement are implemented and t
 ### Limitations
 The 30-day interval is a prototype setting. Supabase service-role credentials remain in Lambda environment variables pending Stage 8. Production legal-policy selection, S3 version handling and infrastructure-as-code remain future work.
 
+## Stage 8: Access, Secret and API-Abuse Hardening
+
+### Work completed
+
+- Stored the Supabase service-role credential in AWS Secrets Manager.
+- Added least-privilege `GetSecretValue` access to backend Lambda roles.
+- Migrated upload, preprocessing, extraction, deletion and retention functions to runtime secret retrieval.
+- Removed the plaintext Supabase service-role environment variable.
+- Retested the complete upload-to-extraction pipeline after migration.
+- Fixed the S3 presigned URL client to use the correct regional SigV4 endpoint configuration.
+- Added authenticated tenant-facing database grants.
+- Revoked anonymous application-data access.
+- Added tenant RLS policies based on `app_metadata.company_id`.
+- Tested cross-tenant document access.
+- Identified an initial RLS isolation failure.
+- Added a mandatory `RESTRICTIVE` tenant policy.
+- Retested and confirmed cross-tenant access was blocked with zero visible rows.
+- Verified own-tenant access and restricted internal security tables.
+- Configured API Gateway stage and `/upload` method throttling.
+- Ran a controlled concurrent burst test and observed HTTP 429 throttling.
+- Configured API Gateway 4XX CloudWatch monitoring and SNS alerting.
+
+### Result
+
+The prototype now protects backend credentials with Secrets Manager, enforces tenant-level data boundaries at the database layer and limits abusive API request bursts at the gateway.
+
+### Important evaluation finding
+
+The first cross-tenant RLS test failed even though a tenant policy existed. The policy design was hardened using a `RESTRICTIVE` policy and the same attack scenario subsequently passed. This finding is retained as evidence that configuration presence alone is not sufficient without adversarial validation.
+
+### Limitations
+
+Secret rotation remains manual, backend service credentials remain privileged, complete end-user authentication is outside the prototype scope, and API Gateway throttling is best-effort rather than full DoS protection.
+
