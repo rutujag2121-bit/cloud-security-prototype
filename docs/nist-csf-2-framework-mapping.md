@@ -1,32 +1,53 @@
 # NIST CSF 2.0 Mapping for the AWS Document Processing Workflow
 
-## Purpose
+## Status
 
-This document maps the implemented AWS-based document processing pipeline to the NIST Cybersecurity Framework 2.0 functions: Govern, Identify, Protect, Detect, Respond, and Recover.
+**Preliminary function-level mapping updated after Stage 8.**
 
-The aim is to show how the cloud security management framework is applied across the AI-driven document lifecycle.
+This file is not yet the final NIST CSF 2.0 evaluation. Stage 9 will extend it into a formal Current Profile, Target Profile, gap analysis, evidence mapping and prioritised improvement plan.
 
-## Current AWS Workflow
+NIST CSF 2.0 organises cybersecurity outcomes under six Functions: GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND and RECOVER.
+
+## Current Prototype Scope
 
 ```text
 API Gateway
 → Upload Lambda
-→ S3 raw document storage
-→ S3 ObjectCreated event
-→ SQS preprocessing queue
-→ Pre-processing Lambda
-→ SQS extraction queue
+→ Private S3
+→ Preprocessing SQS/DLQ
+→ Preprocessing Lambda
+→ Extraction SQS/DLQ
 → Extraction Lambda
-→ Supabase metadata/results/audit tables
-→ CloudWatch trace logs
-```
-NIST CSF 2.0 Function Mapping
-| NIST Function | Meaning in this project                                                                       | Implemented AWS/Supabase controls                                                                                                   | Evidence                                     |
-| ------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Govern        | Define cybersecurity governance, responsibility, policies, and risk approach                  | Security gap analysis, GitHub documentation, evidence log, FRD mapping, NIST mapping                                                | `docs/`, `security/`, evidence README        |
-| Identify      | Identify assets, data flows, risks, and dependencies                                          | Asset inventory: API Gateway, Lambda, S3, SQS, Supabase, CloudWatch; document lifecycle table                                       | AWS architecture, Supabase `documents` table |
-| Protect       | Protect data, systems, and services                                                           | S3 encryption, Block Public Access, pre-signed URLs, input validation, IAM least privilege, CORS control, file size/type validation | Lambda code, S3 screenshots, IAM templates   |
-| Detect        | Detect events, failures, suspicious behaviour, and processing states                          | CloudWatch structured logs, trace IDs, Supabase audit logs, status transitions, DLQ message checks                                  | CloudWatch logs, `audit_logs` table          |
-| Respond       | Respond to failed uploads, failed preprocessing, failed extraction, and low-confidence output | Failed document statuses, DLQs, audit events, safe error logging, `needs_human_review` flag                                         | SQS DLQ evidence, audit logs                 |
-| Recover       | Recover failed workflow states and support reprocessing/deletion                              | DLQ replay plan, failed status tracking, future secure deletion endpoint, lifecycle recovery documentation                          | DLQ screenshots, future deletion stage       |
+→ Post-processing validation / HITL routing
+→ Supabase
+→ CloudWatch / SNS
 
+EventBridge Scheduler
+→ Retention Lambda
+→ Secure-deletion Lambda
+→ S3/database cleanup and deletion evidence
+```
+
+AWS backend Lambdas retrieve the privileged Supabase credential from AWS Secrets Manager. Authenticated tenant-facing database reads are constrained by RLS.
+
+## Function-Level Mapping
+
+| NIST Function | Meaning in this project | Implemented controls/evidence | Important remaining gap |
+|---|---|---|---|
+| GOVERN | Establish security direction, risk treatment, evidence and accountability | PPD/FRD security requirements, STRIDE model, risk register, stage documentation, Git history, evidence handling rules, NIST mapping | Formal Current/Target Profile and prioritised governance actions still required |
+| IDENTIFY | Understand assets, data flows, threats, dependencies and residual risk | Architecture/function map, asset/threat catalogue, document lifecycle metadata, risk register, service/account limitation analysis | Formal residual-risk reassessment and dependency prioritisation |
+| PROTECT | Safeguard data, identities, services and processing integrity | S3 private/encrypted storage, short-lived pre-signed URLs, validation, least-privilege IAM, Secrets Manager, RLS, restrictive tenant policy, post-processing validation, HITL, retention/deletion controls, API throttling | Production API authentication, malware/file-signature scanning, secret rotation, WAF, real-model hardening |
+| DETECT | Detect failures, abuse, unsafe output and anomalous states | Structured CloudWatch logs, trace IDs, audit records, Lambda alarms, DLQ alarms, API 4XX metric/alarm, validation errors, prompt-injection indicators, retention/scheduler alarms | Broader anomaly detection, SIEM integration and automated sensitive-log scanning |
+| RESPOND | Contain, investigate and handle security/processing failures | DLQ investigation/replay runbook, SNS notifications, failed-state handling, HITL escalation, deletion failure recording, controlled remediation/retest evidence | Production incident ownership/escalation and automated response workflows |
+| RECOVER | Restore safe processing and enforce lifecycle recovery after failures | DLQ recovery/replay procedure, alarm recovery testing, idempotent deletion handling, scheduled retention enforcement, secure cleanup/tombstone evidence | Formal recovery objectives, automated replay safeguards and tested disaster-recovery procedures |
+
+## Stage 9 Required Extension
+
+The formal evaluation will:
+1. select relevant CSF 2.0 Categories/Subcategories rather than treating the Functions as a checklist;
+2. define a Current Profile based only on controls actually implemented/tested;
+3. define a Target Profile for production-relevant outcomes;
+4. identify gaps between Current and Target states;
+5. map each implemented outcome to repository/screenshot evidence;
+6. link gaps to the STRIDE/risk register;
+7. prioritise actions and document residual risk.
