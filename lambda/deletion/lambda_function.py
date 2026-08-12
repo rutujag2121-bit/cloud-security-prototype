@@ -14,9 +14,12 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3 = boto3.client("s3")
+secretsmanager = boto3.client("secretsmanager")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_SECRET_ID = os.environ["SUPABASE_SECRET_ID"]
+
+_supabase_service_role_key = None
 BUCKET_NAME = os.environ["BUCKET_NAME"]
 ALLOWED_DELETE_PREFIX = os.environ.get("ALLOWED_DELETE_PREFIX", "raw/").lstrip("/")
 
@@ -32,38 +35,118 @@ def api_response(status_code, body):
         "body": json.dumps(body)
     }
 
+def get_supabase_service_role_key():
+    global _supabase_service_role_key
 
-def supabase_request(method, table_name, query="", payload=None, prefer=None):
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("Supabase configuration is missing")
+    if _supabase_service_role_key:
+        return _supabase_service_role_key
+
+    response = secretsmanager.get_secret_value(
+        SecretId=SUPABASE_SECRET_ID
+    )
+
+    secret_string = response.get("SecretString")
+
+    if not secret_string:
+        raise RuntimeError("Supabase secret value is missing")
+
+    secret_payload = json.loads(secret_string)
+
+    service_role_key = secret_payload.get(
+        "SUPABASE_SERVICE_ROLE_KEY"
+    )
+
+    if not service_role_key:
+        raise RuntimeError(
+            "SUPABASE_SERVICE_ROLE_KEY is missing from secret"
+        )
+
+    _supabase_service_role_key = service_role_key
+
+    return _supabase_service_role_key
+def supabase_request(
+    method,
+    table_name,
+    query="",
+    payload=None,
+    prefer=None
+):
+    if not SUPABASE_URL:
+        raise RuntimeError("Supabase URL is missing")
+
+    service_role_key = get_supabase_service_role_key()
 
     url = f"{SUPABASE_URL}/rest/v1/{table_name}"
+
     if query:
         url = f"{url}?{query}"
 
-    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    data = None
 
-    req = urllib.request.Request(url=url, data=data, method=method)
-    req.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
-    req.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
-    req.add_header("Content-Type", "application/json")
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+
+    request = urllib.request.Request(
+        url=url,
+        data=data,
+        method=method
+    )
+
+    request.add_header(
+        "apikey",
+        service_role_key
+    )
+
+    request.add_header(
+        "Authorization",
+        f"Bearer {service_role_key}"
+    )
+
+    request.add_header(
+        "Content-Type",
+        "application/json"
+    )
+
     if prefer:
-        req.add_header("Prefer", prefer)
+        request.add_header(
+            "Prefer",
+            prefer
+        )
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as result:
+        with urllib.request.urlopen(
+            request,
+            timeout=10
+        ) as result:
+
             raw = result.read().decode("utf-8")
-            return json.loads(raw) if raw else None
+
+            if raw:
+                return json.loads(raw)
+
+            return None
+
     except urllib.error.HTTPError as error:
-        body = error.read().decode("utf-8", errors="replace")
+
+        error_body = error.read().decode(
+            "utf-8",
+            errors="replace"
+        )
+
         raise RuntimeError(
-            f"Supabase {method} failed for {table_name}: {error.code} {body[:400]}"
-        ) from error
-    except urllib.error.URLError as error:
-        raise RuntimeError(
-            f"Supabase connection failed for {table_name}: {error.reason}"
+            f"Supabase {method} failed for "
+            f"{table_name}: "
+            f"{error.code} "
+            f"{error_body[:400]}"
         ) from error
 
+    except urllib.error.URLError as error:
+
+        raise RuntimeError(
+            f"Supabase connection failed for "
+            f"{table_name}: "
+            f"{error.reason}"
+        ) from error
 
 def parse_event(event):
     raw_body = event.get("body") if isinstance(event, dict) else None
