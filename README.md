@@ -46,7 +46,8 @@ Client or API test
 | 5C | Post-processing validation and HITL routing | Completed and tested |
 | 6 | Monitoring, alerting and incident response | Completed and tested |
 | 7 | Retention and secure deletion | Completed and tested |
-| 8 | Access, secret and API-abuse hardening | Next implementation stage |
+| 8 | Access, secret and API-abuse hardening | Completed and tested |
+| 9 | NIST CSF 2.0 framework evaluation | Next evaluation stage |
 
 ## Implementation Status
 
@@ -77,7 +78,10 @@ Client or API test
 | Retention enforcement Lambda | Implemented | Selects enabled expired records and delegates deletion |
 | EventBridge retention schedule | Implemented | Daily automatic scan with Scheduler DLQ |
 | Retention safety controls | Tested | Premature deletion rejection and historical-record protection verified |
-| Tenant-aware RLS | Planned | Backend RLS is enabled; tenant policies remain |
+| AWS Secrets Manager | Implemented | Supabase service-role credential removed from Lambda environment variables |
+| Tenant-aware RLS | Implemented and tested | Cross-tenant access initially failed, was remediated with a restrictive policy and passed on retest |
+| API Gateway throttling | Implemented and tested | Stage and `/upload` limits configured; controlled burst produced HTTP 429 |
+| API 4XX monitoring | Implemented | CloudWatch 4XXError alarm uses the existing SNS security-alert channel |
 | Security evaluation matrix | In progress | Stage 5C evidence is complete |
 | SNS security notification channel | Implemented | Confirmed email delivery for CloudWatch alarms |
 | Lambda error monitoring | Implemented | Upload, preprocessing and extraction error alarms |
@@ -96,6 +100,10 @@ Client or API test
 - Configurable CORS origin
 - UUID-based document identifiers
 - Structured, non-public S3 object paths
+-  API Gateway stage-level throttling
+- Stricter `POST /upload` method throttling
+- Controlled burst test produced HTTP 429
+- API Gateway 4XXError monitoring and SNS alerting
 
 ### Storage and access controls
 
@@ -106,6 +114,12 @@ Client or API test
 - Least-privilege IAM policy templates
 - Restricted S3 and SQS permissions
 - No credentials or complete pre-signed URLs committed to GitHub
+- Supabase service-role credential stored in AWS Secrets Manager
+- Lambda access scoped to the exact secret ARN
+- Tenant authorization derived from JWT `app_metadata.company_id`
+- Restrictive cross-tenant RLS boundary
+- Anonymous application-data access revoked
+- Internal operational/security tables not exposed to authenticated tenants
 
 ### Processing and resilience controls
 
@@ -205,13 +219,13 @@ The remaining framework work includes a Current Profile, Target Profile, gap ana
 
 ## Remaining Capstone Work
 
-1. Strengthen secret-management and rotation controls.
-2. Define and test tenant-aware Supabase RLS.
-3. Configure API Gateway throttling and abuse controls.
-4. Complete the NIST CSF 2.0 Current and Target Profiles.
-5. Complete the consolidated security evaluation matrix.
-6. Run a bounded real-model experiment if suitable credentials become available.
-7. Use the implementation and evaluation findings in the final research paper.
+1. Complete the NIST CSF 2.0 Current Profile.
+2. Define the NIST CSF 2.0 Target Profile.
+3. Complete the control-gap and residual-risk analysis.
+4. Consolidate implemented security tests into the final evaluation matrix.
+5. Map evaluation evidence to FRD security requirements.
+6. Run a bounded real-model experiment only if suitable credentials become available.
+7. Use the framework and evaluation results in the final research paper.
 
 ## Repository Structure
 
@@ -242,3 +256,6 @@ The public repository does not intentionally contain AWS access keys, Supabase s
 The prototype does not claim successful real-model extraction, measured AI accuracy, production readiness, complete GDPR compliance, complete tenant authentication, a finished reviewer interface or comprehensive prompt-injection prevention.
 
 The current implementation demonstrates a secured event-driven pipeline, deterministic AI-output security controls and a documented path for later real-model integration.
+- Secrets Manager rotation is manual.
+- Complete production tenant authentication is not implemented.
+- API throttling is best-effort and AWS WAF is not implemented.
