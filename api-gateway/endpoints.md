@@ -1,32 +1,16 @@
 # API Gateway Endpoints
 
-## API Name
+## API
 
-`document-processing-rest-api`
+- API name: `document-processing-rest-api`
+- Stage: `Dev`
+- Active prototype route: `POST /upload`
 
-## Stage
-
-`Dev`
-
----
-
-## Endpoint 1: POST /upload
+## POST /upload
 
 ### Purpose
 
-Initial prototype endpoint used to validate receipt/invoice upload metadata and create a UUID-based processing job.
-
-### Current Status
-
-This endpoint is retained as the first prototype version. The stronger design is now `POST /upload/initiate`, which creates a secure S3 upload destination.
-
----
-
-## Endpoint 2: POST /upload/initiate
-
-### Purpose
-
-Creates a secure upload initiation flow for receipt/invoice documents. The endpoint validates upload metadata, creates a document ID, generates a structured S3 object key, and returns a pre-signed S3 PUT URL.
+Creates the secure upload-initiation flow for receipt/invoice documents. The endpoint validates upload metadata, creates a document identifier, builds a structured S3 object key, writes initial Supabase lifecycle/audit records and returns a short-lived pre-signed S3 PUT URL.
 
 ### Request Body
 
@@ -35,12 +19,14 @@ Creates a secure upload initiation flow for receipt/invoice documents. The endpo
   "fileName": "receipt1.pdf",
   "contentType": "application/pdf",
   "fileSizeBytes": 250000,
-  "userId": "test-user-1",
-  "companyId": "capisso-test"
+  "userId": "test-user",
+  "companyId": "test-company"
 }
 ```
 
-### Successful Response
+`userId` and `companyId` are prototype request fields. Production identity should be derived from a verified authentication/authorization context rather than trusted directly from caller input.
+
+### Successful Response Shape
 
 ```json
 {
@@ -49,55 +35,62 @@ Creates a secure upload initiation flow for receipt/invoice documents. The endpo
   "jobId": "generated-uuid",
   "status": "upload_url_created",
   "bucket": "<S3_BUCKET_NAME>",
-  "objectKey": "raw/capisso-test/test-user-1/generated-uuid/receipt1.pdf",
-  "uploadUrl": "pre-signed-url-not-committed-to-github",
+  "objectKey": "raw/test-company/test-user/generated-uuid/receipt1.pdf",
+  "uploadUrl": "<SHORT_LIVED_PRESIGNED_URL>",
   "uploadMethod": "PUT",
   "requiredHeaders": {
     "Content-Type": "application/pdf"
   },
   "expiresInSeconds": 900,
-  "traceId": "aws-request-id",
+  "traceId": "request-trace-id",
   "createdAt": "timestamp"
 }
 ```
 
+Complete pre-signed URLs must never be committed to the public repository.
+
 ### Rejection Cases
 
-| Case | Expected Response |
+| Case | Expected result |
 |---|---|
-| Missing `fileName` | 400 error |
-| Missing `contentType` | 400 error |
-| Missing `fileSizeBytes` | 400 error |
-| Unsupported file type | 400 error |
-| File over 10 MB | 400 error |
-| Extension/content-type mismatch | 400 error |
-| Invalid JSON body | 400 error |
+| Missing required metadata | HTTP 400 |
+| Invalid JSON | HTTP 400 |
+| Unsupported content type | HTTP 400 |
+| File size <= 0 | HTTP 400 |
+| File over 10 MB | HTTP 400 |
+| Extension/content-type mismatch | HTTP 400 |
+| Excessive request burst | API Gateway may return HTTP 429 |
 
 ### Security Controls
 
 | Control | Implementation |
 |---|---|
-| File type validation | Allows PDF, JPEG, and PNG only |
-| File size validation | Rejects files over 10 MB |
-| Filename protection | Sanitizes file names before object key creation |
-| Upload destination control | Generates S3 object key under the `raw/` prefix |
-| CORS | Uses allowed origins from Lambda environment variable |
-| Traceability | Returns `documentId`, `jobId`, and `traceId` |
-| PII-aware logging | Logs metadata only, not document contents |
+| File validation | PDF/JPEG/PNG metadata only |
+| File-size limit | 10 MB prototype limit |
+| Filename sanitisation | Unsafe characters replaced |
+| Controlled upload authority | Short-lived S3 PUT pre-signed URL |
+| Private destination | Structured `raw/` S3 path |
+| CORS | Configuration-driven allowed origins |
+| Traceability | UUID document ID and request trace ID |
+| Stage throttling | Prototype stage request-rate/burst limit |
+| Method throttling | Stricter `POST /upload` limit |
+| Abuse monitoring | API Gateway `4XXError` CloudWatch metric/alarm |
 
-### Upload Flow
+### Current Flow
 
 ```text
 Client
-→ POST /upload/initiate
+→ POST /upload
 → API Gateway
 → Upload Lambda
-→ Validate metadata
-→ Generate documentId and S3 objectKey
-→ Return pre-signed S3 PUT URL
-→ Client uploads file directly to S3
+→ validate request
+→ obtain backend database credential from Secrets Manager
+→ write initial Supabase document/audit record
+→ create S3 object key
+→ return short-lived pre-signed S3 PUT URL
+→ client uploads directly to private S3
 ```
 
-### Important Note
+## Historical Route Note
 
-Pre-signed URLs must not be committed to GitHub because they temporarily authorize uploads to S3.
+Earlier repository documentation referred to `POST /upload/initiate` while the upload design was being upgraded. The current deployed/tested prototype route documented by the root README and Stage 8 work is `POST /upload`. Historical references are retained only in older progress material where they describe earlier development decisions.
