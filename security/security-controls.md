@@ -1,90 +1,120 @@
 # Security Controls Implemented
 
-This file maps implemented security controls to the Capisso DEW cloud security prototype.
+This document maps implemented security controls to the Capisso DEW cloud security prototype. It represents the implementation after Stage 8.
 
----
+## Stage 1 — Secure Upload and API Boundary
 
-## Stage 1: Secure Upload Initiation
+Current endpoint: `POST /upload`
 
-### Endpoint
-
-`POST /upload/initiate`
-
-### Previous State
-
-The initial `/upload` endpoint accepted metadata, validated basic fields, generated a UUID `jobId`, and returned status `received`.
-
-### Improved Security Posture
-
-The upload flow was upgraded to generate a controlled S3 pre-signed upload URL. The uploaded document is stored directly in encrypted S3 object storage under a structured `raw/` prefix.
-
-### Implemented Controls
-
-| Security Area | Implemented Control | Reason |
+| Security Area | Implemented Control | Security Purpose |
 |---|---|---|
-| Input validation | Requires `fileName`, `contentType`, and `fileSizeBytes` | Prevents malformed upload requests |
-| File type restriction | Allows only PDF, JPEG, and PNG | Reduces malicious or unsupported file risk |
-| File size control | Rejects files over 10 MB | Prevents oversized uploads and resource abuse |
-| Filename sanitization | Removes unsafe filename characters | Reduces object-key and filename abuse |
-| Object storage | Uses S3 for uploaded document storage | Separates permanent file storage from Lambda execution |
-| Storage prefixing | Uses `raw/{companyId}/{userId}/{documentId}/{fileName}` | Supports lifecycle tracking and tenant separation |
-| Least privilege | Upload Lambda role requires only S3 upload access to the raw prefix | Reduces blast radius |
-| CORS control | Allowed origins configured through environment variable | Replaces wildcard origin design |
-| Safe logging | Logs trace ID, document ID, status, content type, and file size only | Avoids PII and document-content leakage |
-| Traceability | Returns `documentId`, `jobId`, `objectKey`, and `traceId` | Supports audit and debugging |
+| Input validation | Requires `fileName`, `contentType` and `fileSizeBytes` | Rejects malformed requests before upload authority is issued |
+| File-type restriction | PDF, JPEG and PNG only | Reduces unsupported input |
+| Size control | 10 MB prototype limit | Reduces resource-abuse exposure |
+| Filename sanitisation | Unsafe filename characters are replaced | Reduces object-key/filename abuse |
+| Pre-signed upload | Short-lived S3 PUT URL | Avoids proxying full files through Lambda |
+| Structured object path | `raw/{companyId}/{userId}/{documentId}/{fileName}` | Supports lifecycle tracking and tenant context |
+| CORS | Allowed origins are configuration-driven | Avoids wildcard CORS design |
+| API throttling | Stage and stricter `POST /upload` method limits | Reduces excessive request bursts |
+| Abuse telemetry | API Gateway `4XXError` metric and CloudWatch alarm | Provides detection evidence for client errors/throttling |
 
----
+A controlled concurrent burst test produced HTTP `429 Too Many Requests`. API Gateway throttling is treated as best-effort protection, not complete DoS prevention.
 
-## Stage 2: Supabase Metadata and Audit Logging
+## Stage 2 — Metadata, Audit and Backend Credential Handling
 
-### Purpose
-
-Stage 2 adds persistent document metadata and audit logging. This ensures that the system does not only return a temporary upload response, but also records document lifecycle state and security-relevant events.
-
-### Implemented Controls
-
-| Security Area | Implemented Control | Reason |
+| Security Area | Implemented Control | Security Purpose |
 |---|---|---|
-| Metadata tracking | Supabase `documents` table stores document ID, owner/context, file metadata, S3 location, status, and trace ID | Enables lifecycle governance |
-| Audit logging | Supabase `audit_logs` table stores actions such as `UPLOAD_INITIATED` | Supports compliance and incident review |
-| Traceability | `trace_id` is stored in both documents and audit logs | Connects API, Lambda, CloudWatch, and database evidence |
-| Data ownership preparation | `user_id` and `company_id` are stored with each document | Prepares for user/company isolation |
-| Backend-only key use | Supabase service role key is stored only as a Lambda environment variable | Prevents exposing privileged DB access in GitHub/frontend |
-| Lifecycle status | Initial document status is `upload_url_created` | Creates a controlled state transition model |
+| Metadata tracking | Supabase `documents` lifecycle record | Supports governance and traceability |
+| Business audit | Supabase `audit_logs` | Supports investigation and lifecycle evidence |
+| Distributed traceability | `trace_id` stored across technical/business records | Correlates pipeline activity |
+| Managed secret storage | Supabase service-role credential stored in AWS Secrets Manager | Removes plaintext privileged credential from Lambda environment variables |
+| Least-privilege secret retrieval | Each backend Lambda receives `GetSecretValue` only for the required secret | Reduces secret-access blast radius |
 
----
+## Stage 3 — Event-Driven Pre-processing
 
-## Stage 3: Event-Driven Pre-processing
+| Security Area | Implemented Control | Security Purpose |
+|---|---|---|
+| Event-driven processing | S3 ObjectCreated → SQS → Lambda | Separates upload from processing |
+| Queue buffering | Main preprocessing SQS queue | Absorbs temporary downstream failure |
+| Failure isolation | Preprocessing DLQ with retry limit | Prevents silent message loss |
+| S3 boundary check | Expected bucket and `raw/` object structure validated | Reduces unintended object processing |
+| Post-upload validation | Stored object content type checked before extraction | Adds a second validation point |
+| Least privilege | Scoped S3/SQS/Lambda execution permissions | Reduces blast radius |
 
-### Architecture
+## Stage 4 / 5 — Extraction, AI-Output Validation and HITL
 
-```text
-S3 ObjectCreated event
-→ SQS queue
-→ Pre-processing Lambda
-→ Supabase status/audit update
-```
-### Implemented Controls
+| Security Area | Implemented Control | Security Purpose |
+|---|---|---|
+| Provider isolation | Extraction provider behind dedicated Lambda boundary | Allows model replacement without changing security pipeline |
+| Queue isolation | Extraction SQS and DLQ | Failure/retry separation |
+| Versioned schema | Deterministic extraction schema validation | Treats model output as untrusted |
+| Required-field/type checks | Mandatory field and type validation | Prevents malformed output being accepted |
+| Financial validation | Total/subtotal/tax and line-item consistency rules | Detects integrity anomalies |
+| Date/currency validation | Format and value checks | Reduces invalid financial records |
+| Confidence controls | Overall and field-level thresholds | Routes uncertain output away from automatic completion |
+| Prompt-injection indicators | Pattern-based suspicious instruction detection | Escalates potentially manipulated content |
+| HITL routing | Medium/high-priority `review_tasks` | Adds a human-review control for unsafe/uncertain results |
+| Audit evidence | Validation status/errors/reasons persisted | Supports explainability and evaluation |
 
-| Security Area           | Implemented Control                                                  | Reason                                                                          |
-| ----------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Event-driven processing | S3 upload events trigger SQS messages                                | Starts processing automatically after upload                                    |
-| Queue buffering         | SQS queue receives upload events                                     | Prevents processing events from being lost if Lambda is temporarily unavailable |
-| Failure handling        | DLQ stores repeatedly failed messages                                | Supports investigation and graceful failure handling                            |
-| Least privilege         | Pre-processing Lambda has scoped S3, SQS, and CloudWatch permissions | Reduces blast radius                                                            |
-| Prefix isolation        | S3 event notification is limited to `raw/`                           | Prevents processed/rejected artifacts from re-triggering this stage             |
-| Safe logging            | CloudWatch logs metadata only                                        | Prevents leakage of document contents or PII                                    |
-| Audit logging           | Supabase audit logs record upload and pre-processing events          | Supports traceability and compliance evidence                                   |
-| Status tracking         | Supabase document status is updated across pipeline stages           | Enables lifecycle governance                                                    |
+The deterministic mock adapter validates control behaviour and orchestration. It is not evidence of real-model extraction accuracy or comprehensive prompt-injection prevention.
 
-## Stage 4: Mock Extraction Security Controls
+## Stage 6 — Monitoring, Alerting and Incident Response
 
-### Architecture
+| Security Area | Implemented Control | Security Purpose |
+|---|---|---|
+| Lambda error alarms | Upload, preprocessing and extraction error alarms | Detects processing failures |
+| DLQ alarms | Preprocessing/extraction visible-message alarms | Detects exhausted retries/poison messages |
+| SNS notification | Confirmed email security-notification channel | Escalates alarm state |
+| Retry-exhaustion test | Invalid extraction message forced through retries to DLQ | Validates failure path |
+| Incident runbook | Investigation, replay decision and recovery guidance | Supports repeatable response |
+| Trace logs | Structured CloudWatch trace IDs | Supports investigation |
 
-```text
-Extraction SQS queue
-→ Extraction Lambda
-→ Supabase processing_runs
-→ Supabase extraction_results
-→ Supabase audit_logs
-```
+A KMS-related SNS notification failure was discovered during testing, remediated for the prototype and retested successfully. SNS encryption remains disabled in the prototype and is documented as a residual limitation.
+
+## Stage 7 — Retention and Secure Deletion
+
+| Security Area | Implemented Control | Security Purpose |
+|---|---|---|
+| Retention metadata | `retention_until`, policy metadata and enforcement flag | Makes lifecycle policy explicit |
+| Destructive-role isolation | Dedicated deletion Lambda | Separates destructive permissions |
+| Prefix-scoped deletion | S3 deletion restricted to `raw/` | Limits destructive scope |
+| Retention safety check | Deletion rejects future `retention_until` values | Prevents premature automatic deletion |
+| S3 deletion verification | Object absence verified after delete | Provides stronger deletion evidence |
+| Database cleanup | Processing/result/review data removed | Minimises retained sensitive data |
+| Audit minimisation | Identifying audit metadata redacted | Balances audit evidence and privacy |
+| Deletion tombstone | Minimal SHA-256 fingerprint/status record | Preserves non-content deletion evidence |
+| Idempotency | Repeat completed deletion handled safely | Reduces duplicate-destructive behaviour |
+| Scheduler | Daily EventBridge retention invocation | Automates prototype enforcement |
+| Scheduler DLQ/alarm | Delivery failure monitoring | Detects automation failure |
+
+The 30-day interval is a prototype configuration, not a universal GDPR retention period.
+
+## Stage 8 — Access, Secrets and API-Abuse Hardening
+
+| Security Area | Implemented Control | Security Purpose |
+|---|---|---|
+| Secrets Manager | Backend Supabase service-role credential moved out of Lambda env vars | Reduces credential exposure |
+| Tenant RLS | Authenticated tenant reads constrained by `app_metadata.company_id` | Enforces company-level database isolation |
+| Restrictive RLS boundary | Mandatory document tenant policy | Prevents permissive-policy interaction from bypassing tenant boundary |
+| Least-privilege grants | Tenant role only receives required table reads | Reduces database exposure |
+| Anonymous denial | Application-data privileges revoked from `anon` | Blocks unauthenticated database reads |
+| API throttling | Stage and `/upload` method throttles | Reduces burst abuse |
+| 4XX monitoring | API Gateway 4XX metric/alarm | Detects abnormal client/throttling activity |
+
+The first cross-tenant test failed despite the existence of a tenant policy. A restrictive policy was introduced and the same test then passed with zero cross-tenant rows visible. The failure/remediation/retest sequence is retained as evaluation evidence.
+
+## Logging and Privacy Notes
+
+CloudWatch logs intentionally avoid document body content, secret values and complete pre-signed URLs. Technical identifiers such as trace IDs, document IDs and some object metadata may be logged for operational traceability. Supabase business audit records hold richer lifecycle metadata and are protected as backend data.
+
+## Current Residual Limitations
+
+- The API currently accepts prototype `userId`/`companyId` values rather than deriving them from a fully implemented production API authorizer.
+- Secrets Manager rotation is manual.
+- Trusted backend service credentials remain privileged.
+- API Gateway throttling is best-effort; AWS WAF is not implemented.
+- Malware scanning and file-signature verification are not implemented.
+- SQS replay/idempotency protections are not comprehensive.
+- Real-model adversarial testing and model accuracy evaluation remain deferred.
+- The HITL backend exists, but a complete reviewer UI is outside prototype scope.
+- The project does not claim complete GDPR compliance or production readiness.
