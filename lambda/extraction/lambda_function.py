@@ -1,4 +1,3 @@
-
 import json
 import os
 import uuid
@@ -8,6 +7,9 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
+import boto3
+secretsmanager = boto3.client("secretsmanager")
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -16,7 +18,9 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 if SUPABASE_URL.endswith("/rest/v1"):
     SUPABASE_URL = SUPABASE_URL.replace("/rest/v1", "")
 
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_SECRET_ID = os.environ["SUPABASE_SECRET_ID"]
+
+_supabase_service_role_key = None
 CONFIDENCE_THRESHOLD = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.85"))
 FINANCIAL_TOLERANCE = float(os.environ.get("FINANCIAL_TOLERANCE", "0.02"))
 
@@ -65,10 +69,40 @@ PROMPT_INJECTION_PATTERNS = [
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
+def get_supabase_service_role_key():
+    global _supabase_service_role_key
 
+    if _supabase_service_role_key:
+        return _supabase_service_role_key
+
+    response = secretsmanager.get_secret_value(
+        SecretId=SUPABASE_SECRET_ID
+    )
+
+    secret_string = response.get("SecretString")
+
+    if not secret_string:
+        raise RuntimeError("Supabase secret value is missing")
+
+    secret_payload = json.loads(secret_string)
+
+    service_role_key = secret_payload.get(
+        "SUPABASE_SERVICE_ROLE_KEY"
+    )
+
+    if not service_role_key:
+        raise RuntimeError(
+            "SUPABASE_SERVICE_ROLE_KEY is missing from secret"
+        )
+
+    _supabase_service_role_key = service_role_key
+
+    return _supabase_service_role_key
 def supabase_request(method, table_name, payload=None, query_string=""):
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("Supabase configuration is missing")
+    if not SUPABASE_URL:
+        raise RuntimeError("Supabase URL is missing")
+
+    service_role_key = get_supabase_service_role_key()
 
     url = f"{SUPABASE_URL}/rest/v1/{table_name}{query_string}"
 
@@ -82,8 +116,8 @@ def supabase_request(method, table_name, payload=None, query_string=""):
         method=method
     )
 
-    request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
-    request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
+    request.add_header("apikey", service_role_key)
+    request.add_header("Authorization", f"Bearer {service_role_key}")
     request.add_header("Content-Type", "application/json")
 
     if method in ["POST", "PATCH"]:
