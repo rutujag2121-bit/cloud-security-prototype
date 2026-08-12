@@ -1,157 +1,51 @@
 # Evidence Folder
 
-This folder tracks implementation evidence for the cloud security prototype.
+This folder tracks implementation and evaluation evidence for the cloud security prototype.
 
-Screenshots are stored locally unless they are cropped and sanitized. The public GitHub repository should contain an evidence index, not a dump of sensitive screenshots.
-
----
-
-## Stage 1 — Secure Upload Evidence
-
-| Evidence Item | Status | Storage |
-|---|---|---|
-| S3 bucket created | Completed | Local screenshot |
-| S3 Block Public Access enabled | Completed | Local screenshot |
-| S3 default encryption enabled | Completed | Local screenshot |
-| S3 prefixes created: `raw`, `processed`, `rejected`, `audit-artifacts` | Completed | Local screenshot |
-| Upload Lambda environment variables configured | Completed | Local screenshot |
-| Upload Lambda IAM inline policy attached | Completed | Local screenshot |
-| Valid upload initiation test passed | Completed | Local screenshot |
-| Invalid file type rejected | Completed | Local screenshot |
-| Oversized file rejected | Completed | Local screenshot |
-| Extension/content-type mismatch rejected | Completed | Local screenshot |
-| S3 object uploaded through pre-signed URL | Completed | Local screenshot |
-| CloudWatch safe log generated with trace ID | Completed | Local screenshot |
-
----
-
-## Stage 2 — Supabase Metadata and Audit Evidence
-
-| Evidence Item | Status | Storage |
-|---|---|---|
-| Supabase `documents` table created | Completed | Local screenshot |
-| Supabase `audit_logs` table created | Completed | Local screenshot |
-| Upload initiation created document record | Completed | Local screenshot |
-| Upload initiation created audit record | Completed | Local screenshot |
-| CloudWatch log confirms database write | Completed | Local screenshot |
-
----
-
-## Stage 3 — Event-Driven Pre-processing Evidence
-
-| Evidence Item | Status | Storage |
-|---|---|---|
-| SQS dead-letter queue `capisso-preprocess-dlq` created | Completed | Local screenshot |
-| SQS main queue `capisso-preprocess-queue` created | Completed | Local screenshot |
-| Dead-letter queue configured with maximum receives set to 3 | Completed | Local screenshot |
-| SQS access policy allows S3 bucket to send messages | Completed | Local screenshot |
-| S3 event notification created for `raw/` prefix | Completed | Local screenshot |
-| Pre-processing Lambda created | Completed | Local screenshot |
-| Pre-processing Lambda IAM policy attached | Completed | Local screenshot |
-| SQS trigger attached to pre-processing Lambda | Completed | Local screenshot |
-| File uploaded to S3 through pre-signed URL | Completed | Local screenshot |
-| Pre-processing Lambda CloudWatch log generated | Completed | Local screenshot |
-| Supabase document status updated by pre-processing Lambda | Completed | Local screenshot |
-| Supabase audit log records generated | Completed | Local screenshot |
-
----
+Screenshots should remain private unless cropped and sanitised. The public repository should contain evidence indexes rather than sensitive console dumps.
 
 ## Evidence Handling Rule
 
 Do not commit:
-
-- AWS access keys
-- Supabase service-role keys
+- AWS access/secret keys
+- Supabase service-role credentials
 - `.env` files
-- Full pre-signed URLs
-- Real receipt or invoice files containing PII
-- Full screenshots exposing account details, tokens, or sensitive configuration
-- Raw CloudWatch logs containing sensitive values
+- complete pre-signed URLs
+- real financial documents or PII
+- real JWTs or session tokens
+- full AWS account identifiers where not required
+- screenshots containing secrets, sensitive account configuration or personal email details
+- raw logs containing sensitive data
 
-Screenshots should be kept in a private local folder unless they are cropped and sanitized.
+## Stage Evidence Summary
 
-Recommended private local structure:
+| Stage | Evidence status | Examples retained privately |
+|---|---|---|
+| 1 Secure upload | Complete | Private/encrypted S3, IAM scope, valid/invalid upload tests, pre-signed PUT success |
+| 2 Supabase metadata/audit | Complete | `documents`, `audit_logs`, trace-linked database writes |
+| 3 Event-driven preprocessing | Complete | S3 event, SQS/DLQ, Lambda trigger, Supabase/CloudWatch updates |
+| 4 Mock extraction | Complete | Extraction queue/DLQ, processing run, extraction result, lifecycle/audit evidence |
+| 5A Real-service attempt | Complete as constraint evidence | Textract invocation boundary and `SubscriptionRequiredException` |
+| 5B Secure model adapter design | Complete as design evidence | Nova Lite selection, IAM template, prompt, schema and test plan |
+| 5C Validation/HITL | Complete | Valid, low-confidence, missing-field, financial-mismatch, prompt-injection and malformed-output scenarios |
+| 6 Monitoring/incident response | Complete | Lambda/DLQ alarms, controlled failures, SNS notification, retry exhaustion, recovery/runbook |
+| 7 Retention/secure deletion | Complete | Premature-deletion rejection, manual deletion, S3/database verification, retention scan, scheduler/DLQ |
+| 8A Secrets Manager | Complete | Secret creation, exact-secret IAM, environment-secret removal, full-pipeline regression |
+| 8B Tenant isolation | Complete | Initial cross-tenant failure, restrictive policy creation, cross-tenant PASS, least-privilege table access |
+| 8C API abuse protection | Complete for throttling/telemetry | Throttling configuration, normal request, controlled burst with HTTP 429, 4XX metric/alarm configuration |
 
-```text
-capstone-evidence-private/
-  stage-1-secure-upload/
-  stage-2-supabase-audit/
-  stage-3-event-driven-preprocessing/
-```
-## Stage 4 — Mock Extraction Pipeline
+## Important Evaluation Evidence to Preserve
 
-### Objective
+Keep both failure and remediation evidence where available. In particular:
+- initial RLS cross-tenant failure and final zero-row pass;
+- initial CloudWatch/SNS notification failure and successful remediation;
+- retry-exhaustion path into extraction DLQ;
+- secure-deletion success/verification evidence;
+- retention-not-due rejection and expired-retention success;
+- HTTP 429 burst-test output.
 
-Validate the extraction-stage orchestration independently of paid model access. This stage tested the extraction queue, Lambda processing, result persistence, confidence handling, document-status updates, audit logging and CloudWatch traceability.
+A failed security test that is diagnosed, remediated and retested is valuable evaluation evidence and should not be removed from the private evidence set.
 
-### Evidence
+## Model-Evaluation Limitation
 
-| Evidence file | Description |
-|---|---|
-| `stage-4/01-extraction-queue-and-dlq.png` | Extraction SQS queue and associated dead-letter queue |
-| `stage-4/02-extraction-lambda-sqs-trigger.png` | Extraction queue configured as the Lambda trigger |
-| `stage-4/03-extraction-lambda-code-deployed.png` | Mock extraction Lambda implementation deployed |
-| `stage-4/04-extraction-lambda-iam-policy.png` | Least-privilege extraction Lambda permissions |
-| `stage-4/05-supabase-processing-run.png` | Processing-run record created for the extraction operation |
-| `stage-4/06-supabase-extraction-result.png` | Structured mock extraction result stored in Supabase |
-| `stage-4/07-supabase-document-status.png` | Document lifecycle status updated after extraction |
-| `stage-4/08-supabase-audit-events.png` | Extraction lifecycle events recorded in the audit table |
-| `stage-4/09-cloudwatch-extraction-trace.png` | Structured CloudWatch log containing the trace ID and extraction result |
-
-### Outcome
-
-The extraction queue and Lambda were successfully integrated with the existing preprocessing workflow.
-
-The stage demonstrated:
-
-- Extraction-message consumption from SQS
-- Processing-run creation
-- Structured-result persistence
-- Field and overall confidence storage
-- `needs_human_review` readiness
-- Document-status transitions
-- Audit-event creation
-- Trace-ID continuity
-
-The mock output was used only for deterministic pipeline and security-control testing. It is not presented as evidence of real AI extraction accuracy.
-
----
-
-## Stage 5A — Real AWS Extraction Integration Attempt
-
-### Objective
-
-Replace the mock extraction adapter with an AWS-native receipt and invoice extraction service.
-
-Amazon Textract `AnalyzeExpense` was selected for the initial integration attempt because it supports structured extraction of receipt and invoice fields.
-
-### Evidence
-
-| Evidence file | Description |
-|---|---|
-| `stage-5a/01-textract-iam-permission.png` | Extraction Lambda permission for `textract:AnalyzeExpense` |
-| `stage-5a/02-textract-extraction-code-deployed.png` | Textract adapter deployed in the extraction Lambda |
-| `stage-5a/03-cloudwatch-subscription-required-error.png` | CloudWatch error showing `SubscriptionRequiredException` |
-| `stage-5a/04-aws-free-plan-access-limitation.png` | AWS console page showing free-account service limitations |
-| `stage-5a/05-project-lead-model-guidance.txt` | Sanitised record of the decision to defer paid model execution |
-
-### Outcome
-
-The AWS event-driven pipeline successfully reached the Amazon Textract API call. The request was rejected with:
-
-```text
-SubscriptionRequiredException
-```
-The AWS console confirmed that the current free account plan restricts access to the required service. Therefore, the failure was caused by an account-level service limitation rather than the SQS trigger, Lambda invocation flow or extraction-adapter control path.
-
-Following project-lead guidance, paid model execution has been deferred until billing-enabled project credentials are available.
-
-The next model-related tasks are:
-
-- Select a suitable Amazon Bedrock model
-- Identify a SageMaker alternative
-- Define the secure model-invocation workflow
-- Prepare the IAM policy template
-- Prepare the extraction prompt and JSON schema
-- Define the real-model evaluation plan
-
+The repository/evidence does not demonstrate successful real-model extraction accuracy. Deterministic Stage 5C scenarios evaluate security-control behaviour, not model accuracy.
