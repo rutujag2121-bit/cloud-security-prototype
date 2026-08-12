@@ -13,16 +13,49 @@ logger.setLevel(logging.INFO)
 
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
+secretsmanager = boto3.client("secretsmanager")
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_SECRET_ID = os.environ["SUPABASE_SECRET_ID"]
+
+_supabase_service_role_key = None
 EXTRACTION_QUEUE_URL = os.environ.get("EXTRACTION_QUEUE_URL", "")
 
+def get_supabase_service_role_key():
+    global _supabase_service_role_key
 
+    if _supabase_service_role_key:
+        return _supabase_service_role_key
+
+    response = secretsmanager.get_secret_value(
+        SecretId=SUPABASE_SECRET_ID
+    )
+
+    secret_string = response.get("SecretString")
+
+    if not secret_string:
+        raise RuntimeError("Supabase secret value is missing")
+
+    secret_payload = json.loads(secret_string)
+
+    service_role_key = secret_payload.get(
+        "SUPABASE_SERVICE_ROLE_KEY"
+    )
+
+    if not service_role_key:
+        raise RuntimeError(
+            "SUPABASE_SERVICE_ROLE_KEY is missing from secret"
+        )
+
+    _supabase_service_role_key = service_role_key
+
+    return _supabase_service_role_key
 def supabase_request(method, table_name, payload=None, query_string=""):
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("Supabase configuration is missing")
+    if not SUPABASE_URL:
+        raise RuntimeError("Supabase URL is missing")
+
+    service_role_key = get_supabase_service_role_key()
 
     url = f"{SUPABASE_URL}/rest/v1/{table_name}{query_string}"
 
@@ -31,8 +64,8 @@ def supabase_request(method, table_name, payload=None, query_string=""):
         data = json.dumps(payload).encode("utf-8")
 
     request = urllib.request.Request(url=url, data=data, method=method)
-    request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
-    request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
+    request.add_header("apikey", service_role_key)
+    request.add_header("Authorization", f"Bearer {service_role_key}")
     request.add_header("Content-Type", "application/json")
 
     if method in ["PATCH", "POST"]:
