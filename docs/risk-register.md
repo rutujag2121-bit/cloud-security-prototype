@@ -2,83 +2,71 @@
 
 ## 1. Purpose
 
-This risk register prioritises the threats identified in the STRIDE threat model.
+This risk register tracks threats identified in the STRIDE threat model and records the security controls implemented through Stage 8.
 
-Risk is calculated as:
+The original inherent-risk scores are retained. **Residual-risk scores are intentionally marked for Stage 9 reassessment** where the control set has materially changed; this avoids presenting unvalidated numerical reductions as completed evaluation.
+
+Risk score methodology:
 
 ```text
 Risk score = Likelihood × Impact
 ```
-## 2. Rating Scale
-### Likelihood
-| Score | Meaning        |
-| ----: | -------------- |
-|     1 | Rare           |
-|     2 | Unlikely       |
-|     3 | Possible       |
-|     4 | Likely         |
-|     5 | Almost certain |
 
-### Impact
-| Score | Meaning    |
-| ----: | ---------- |
-|     1 | Negligible |
-|     2 | Minor      |
-|     3 | Moderate   |
-|     4 | Major      |
-|     5 | Severe     |
+Likelihood and impact use a 1–5 scale.
 
-### Risk level
-| Score | Level    |
-| ----: | -------- |
-|   1–4 | Low      |
-|   5–9 | Medium   |
-| 10–16 | High     |
+| Score | Risk level |
+|---:|---|
+| 1–4 | Low |
+| 5–9 | Medium |
+| 10–16 | High |
 | 17–25 | Critical |
 
-## 3. Risk Register
-| Risk ID | Related threat | Risk description                                                                         | Likelihood | Impact | Inherent score | Current controls                                              | Residual score | Treatment | Priority action                                                           |
-| ------- | -------------- | ---------------------------------------------------------------------------------------- | ---------: | -----: | -------------: | ------------------------------------------------------------- | -------------: | --------- | ------------------------------------------------------------------------- |
-| R-01    | T-01           | Unauthenticated users may obtain upload URLs and submit documents under false identities |          4 |      4 |        16 High | Metadata validation and structured identifiers                |        12 High | Mitigate  | Add authentication and verified user/company claims in production         |
-| R-02    | T-02           | Leaked pre-signed URLs may be used by unauthorised parties before expiry                 |          3 |      4 |        12 High | Short expiry and fixed S3 key                                 |       8 Medium | Mitigate  | Reduce expiry where practical and bind requests to authenticated sessions |
-| R-03    | T-03           | Malicious or incorrectly labelled files may reach document parsers or models             |          4 |      4 |        16 High | Extension, content-type and size validation                   |        12 High | Mitigate  | Add file-signature verification and malware-scanning design               |
-| R-04    | T-04           | API or upload abuse may create processing backlog and unexpected cloud cost              |          3 |      4 |        12 High | Size limit and asynchronous queues                            |       9 Medium | Mitigate  | Configure API Gateway throttling and monitoring                           |
-| R-05    | T-05           | Incorrect S3 access configuration may expose sensitive documents                         |          2 |      5 |        10 High | Block Public Access and encryption                            |       5 Medium | Mitigate  | Add configuration-review evidence and policy checks                       |
-| R-06    | T-06           | Overprivileged or compromised Lambda roles may access unrelated resources                |          3 |      5 |        15 High | Separate least-privilege IAM policies                         |       8 Medium | Mitigate  | Review resource-level permissions and remove unused actions               |
-| R-07    | T-07           | Forged, modified or replayed SQS messages may cause duplicate or unauthorised processing |          3 |      4 |        12 High | Restricted queue access and structured IDs                    |       9 Medium | Mitigate  | Add schema validation and idempotent processing checks                    |
-| R-08    | T-09           | PII, credentials or temporary URLs may be exposed through logs                           |          3 |      5 |        15 High | Safe structured logging                                       |       8 Medium | Mitigate  | Conduct log review and document prohibited log fields                     |
-| R-09    | T-10           | Supabase service-role key compromise may provide privileged database access              |          3 |      5 |        15 High | Environment-variable storage and secret exclusion from GitHub |        10 High | Mitigate  | Use managed secret storage and define key-rotation procedure              |
-| R-10    | T-11           | Incomplete RLS policies may allow cross-company data access                              |          3 |      5 |        15 High | Company/user fields and RLS enabled                           |        12 High | Mitigate  | Add or explicitly document production RLS policy requirements             |
-| R-11    | T-12           | Prompt injection embedded in uploaded documents may influence the model | 4 | 4 | 16 High | Fixed prompt design, document-as-untrusted-data handling, pattern-based prompt-injection detection and high-priority HITL routing | 12 High | Mitigate | Test adversarial documents against the real Bedrock or SageMaker adapter |
-| R-12    | T-13           | Hallucinated or malformed extraction values may be stored as valid financial data | 4 | 5 | 20 Critical | Versioned schema validation, required-field checks, date and currency validation, financial-total checks, line-item consistency checks, invalid-output handling and high-priority HITL routing | 15 High | Mitigate | Validate the controls using real-model output and expand rules using evaluation findings |
-| R-13    | T-14           | Low-confidence output may incorrectly bypass human review | 3 | 4 | 12 High | Overall confidence threshold, field-level confidence checks, model uncertainty fields, deterministic low-confidence testing and review-task creation | 9 Medium | Mitigate | Re-test threshold behaviour using real-model confidence values |
-| R-14    | T-15           | Failed queue messages may remain unnoticed and cause processing loss                     |          3 |      4 |        12 High | DLQs and retry limits                                         |       8 Medium | Mitigate  | Add DLQ alarms and investigation/replay runbook                           |
-| R-15    | T-16           | Missing retention and deletion enforcement may violate privacy obligations               |          4 |      4 |        16 High | Planned lifecycle statuses                                    |        12 High | Mitigate  | Define retention period and secure deletion workflow                      |
-| R-16    | T-17           | Sensitive configuration or evidence may be committed to the public repository            |          3 |      5 |        15 High | Placeholders, `.gitignore` and evidence sanitisation          |       8 Medium | Mitigate  | Perform repository secret and evidence review                             |
-| R-17    | T-18           | Security failures may continue without alarms or incident response                       |          3 |      4 |        12 High | CloudWatch logs and audit records                             |       9 Medium | Mitigate  | Configure alarms and document response responsibilities                   |
+## 2. Updated Risk Register
 
-## 4. Priority Order
-The immediate implementation priorities are:
+| Risk ID | Threat | Risk description | Inherent score | Current controls after Stage 8 | Residual status / remaining treatment |
+|---|---|---|---:|---|---|
+| R-01 | T-01 | Caller may request upload authority under false identity/company context | 16 High | Metadata validation, structured IDs, private upload flow | **High-priority residual:** production authentication/JWT-derived API identity not implemented |
+| R-02 | T-02 | Leaked pre-signed URL may be used before expiry | 12 High | Short expiry, fixed object key and content type | Reassess in Stage 9; consider authenticated-session binding/one-time semantics |
+| R-03 | T-03 | Malicious/disguised file may reach downstream processing | 16 High | Extension, content type, size and post-upload content-type checks | **High residual:** add file-signature validation/malware scanning |
+| R-04 | T-04 | API abuse may create cost/backlog | 12 High | Size limit, asynchronous queues, API Gateway stage/method throttling, 4XX monitoring | Reassess in Stage 9; WAF/quotas/authenticated abuse controls remain |
+| R-05 | T-05 | S3 misconfiguration may expose sensitive documents | 10 High | Block Public Access, private bucket, server-side encryption, scoped IAM | Reassess in Stage 9; automated configuration compliance not implemented |
+| R-06 | T-06 | Overprivileged/compromised Lambda role may access unrelated resources | 15 High | Separate execution roles, resource-scoped IAM, deletion privilege isolation, exact-secret access | Reassess in Stage 9; periodic/automated IAM review remains |
+| R-07 | T-07 | Forged/replayed queue message may cause duplicate/incorrect processing | 12 High | Restricted SQS permissions, structured messages, document IDs, DLQ/retry control | Residual remains significant; stronger schema validation/idempotency/replay protection required |
+| R-08 | T-09 | PII/credentials/temporary URLs may be exposed in logs | 15 High | Structured logging, no document-body/secret/pre-signed-URL logging by design, evidence sanitisation | Reassess in Stage 9; automated sensitive-log scanning absent |
+| R-09 | T-10 | Supabase service-role credential compromise gives privileged DB access | 15 High | AWS Secrets Manager, exact-secret IAM, no plaintext Lambda env secret, GitHub exclusion | Reassess in Stage 9; rotation is manual and backend credential remains privileged |
+| R-10 | T-11 | Incorrect RLS may expose one company to another | 15 High | Tenant RLS, least-privilege grants, anonymous revoke, mandatory restrictive document policy, cross-tenant test/retest | Reassess in Stage 9; end-to-end production auth/token governance remains |
+| R-11 | T-12 | Prompt injection in document may manipulate model output | 16 High | Fixed prompt design, strict JSON schema, pattern indicators, high-priority HITL routing | High residual: real-model adversarial testing and broader defences deferred |
+| R-12 | T-13 | Hallucinated/malformed financial values may be accepted | 20 Critical | Versioned schema, required/type/date/currency/financial checks, malformed-output handling, HITL | High residual until controls are evaluated with real-model output |
+| R-13 | T-14 | Low-confidence result may bypass review | 12 High | Overall/field confidence thresholds, uncertainty fields, deterministic tests, review-task creation | Reassess with real-model confidence behaviour |
+| R-14 | T-15 | Repeated queue failure may remain unnoticed or cause processing loss | 12 High | DLQs, retry limits, Lambda/DLQ alarms, SNS notification, retry-exhaustion test, runbook | Reassess in Stage 9; automated/idempotent replay not implemented |
+| R-15 | T-16 | Data may be retained too long or deletion may be ineffective | 16 High | Retention metadata, safety flag, scheduled enforcement, dedicated deletion Lambda, S3 verification, cascade cleanup, audit minimisation, tombstone | Reassess in Stage 9; legal retention policy selection/S3 version handling remain |
+| R-16 | T-17 | Secrets or sensitive evidence may be committed publicly | 15 High | `.gitignore`, placeholders, evidence sanitisation, repository review, managed secret storage | Reassess in Stage 9; Git history/secret-scanning review remains advisable |
+| R-17 | T-18 | Security failures may continue without detection/response | 12 High | CloudWatch alarms, DLQ alarms, SNS email, API 4XX alarm, retention/scheduler alarms, runbook, controlled alarm tests | Reassess in Stage 9; production incident escalation/SIEM absent |
 
-| Rank | Risk | Required action |
-|---|---|---|
-| 1 | R-14 | Add DLQ alarms and an investigation/replay procedure |
-| 2 | R-17 | Add monitoring alarms and incident-response guidance |
-| 3 | R-15 | Implement retention and secure deletion |
-| 4 | R-10 | Define tenant-isolation and RLS requirements |
-| 5 | R-09 | Improve secret management and document key rotation |
-| 6 | R-07 | Add idempotent processing and replay protection |
-| 7 | R-03 | Strengthen file validation using signature verification |
-| 8 | R-04 | Configure API Gateway throttling and abuse monitoring |
+## 3. Controls Completed Since the Original Risk Register
 
-## 5. Residual Risk
+The following earlier priority actions are now implemented:
 
-Some risks remain because the project is a prototype and the available AWS account does not support real Bedrock, SageMaker or Textract execution.
-These limitations will be documented rather than represented as completed controls.
-The risk register will be updated after:
-- Post-processing implementation
-- HITL routing tests
-- Monitoring configuration
-- NIST Current and Target Profile analysis
-- Final security evaluation
+- R-04: API Gateway throttling and abuse monitoring.
+- R-09: managed secret storage through AWS Secrets Manager.
+- R-10: tenant RLS plus restrictive cross-tenant boundary and retest.
+- R-11/R-12/R-13: deterministic AI-output security validation and HITL routing.
+- R-14: DLQ alarms, retry-exhaustion testing and replay runbook.
+- R-15: retention enforcement and verified secure deletion.
+- R-17: CloudWatch/SNS monitoring and incident-response evidence.
 
+## 4. Priority Residual Risks for Stage 9
+
+The formal Current/Target Profile should give particular attention to:
+1. production API authentication and verified tenant identity;
+2. file-signature validation/malware scanning;
+3. real-model adversarial and accuracy/integrity evaluation;
+4. message idempotency/replay protection;
+5. automated secret rotation and configuration/IAM review;
+6. WAF/stronger abuse controls;
+7. formal incident escalation/recovery objectives;
+8. S3 version-aware deletion and legally determined retention policy.
+
+## 5. Evaluation Note
+
+The final residual scores should be assigned in Stage 9 after the evidence matrix is completed. The paper should clearly distinguish inherent risk, implemented treatment, observed test results and remaining residual risk.
