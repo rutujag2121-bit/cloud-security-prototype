@@ -20,16 +20,27 @@ The prototype addresses secure document upload, private storage, least-privilege
 Client or API test
 → Amazon API Gateway
 → Upload Lambda
+   ↘ AWS Secrets Manager
 → Pre-signed S3 PUT URL
 → Private S3 raw document storage
 → S3 ObjectCreated event
 → Pre-processing SQS queue and DLQ
 → Pre-processing Lambda
+   ↘ AWS Secrets Manager
 → Extraction SQS queue and DLQ
 → Extraction Lambda
-→ Post-processing validator
-→ Supabase results, validation evidence and review tasks
-→ CloudWatch structured logs
+   ↘ AWS Secrets Manager
+→ Post-processing validation / HITL routing
+→ Supabase
+   ↳ Tenant-aware RLS
+→ CloudWatch alarms
+→ SNS security notifications
+
+EventBridge Scheduler
+→ Retention Lambda
+→ Secure-deletion Lambda
+→ S3/database cleanup
+→ Deletion tombstones
 ```
 
 ## Development Stages
@@ -82,7 +93,7 @@ Client or API test
 | Tenant-aware RLS | Implemented and tested | Cross-tenant access initially failed, was remediated with a restrictive policy and passed on retest |
 | API Gateway throttling | Implemented and tested | Stage and `/upload` limits configured; controlled burst produced HTTP 429 |
 | API 4XX monitoring | Implemented | CloudWatch 4XXError alarm uses the existing SNS security-alert channel |
-| Security evaluation matrix | In progress | Stage 5C evidence is complete |
+| Security evaluation matrix | In progress | Stage-level security evidence is complete through Stage 8; consolidated evaluation is Stage 9 |
 | SNS security notification channel | Implemented | Confirmed email delivery for CloudWatch alarms |
 | Lambda error monitoring | Implemented | Upload, preprocessing and extraction error alarms |
 | DLQ monitoring | Implemented | Preprocessing and extraction visible-message alarms |
