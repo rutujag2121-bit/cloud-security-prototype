@@ -8,11 +8,24 @@ import urllib.error
 from datetime import datetime, timezone
 
 import boto3
+from botocore.config import Config
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-s3 = boto3.client("s3")
+AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-2")
+
+s3 = boto3.client(
+    "s3",
+    region_name=AWS_REGION,
+    config=Config(
+        signature_version="s3v4",
+        s3={
+            "addressing_style": "virtual"
+        }
+    )
+)
+secretsmanager = boto3.client("secretsmanager")
 
 BUCKET_NAME = os.environ["BUCKET_NAME"]
 UPLOAD_PREFIX = os.environ.get("UPLOAD_PREFIX", "raw")
@@ -20,7 +33,9 @@ MAX_FILE_SIZE_BYTES = int(os.environ.get("MAX_FILE_SIZE_BYTES", "10485760"))
 PRESIGNED_URL_EXPIRES_SECONDS = int(os.environ.get("PRESIGNED_URL_EXPIRES_SECONDS", "900"))
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_SECRET_ID = os.environ["SUPABASE_SECRET_ID"]
+
+_supabase_service_role_key = None
 
 ALLOWED_TYPES = {
     "application/pdf": [".pdf"],
@@ -107,11 +122,40 @@ def validate_request(body):
 
     return True, None
 
+def get_supabase_service_role_key():
+    global _supabase_service_role_key
 
+    if _supabase_service_role_key:
+        return _supabase_service_role_key
+
+    response = secretsmanager.get_secret_value(
+        SecretId=SUPABASE_SECRET_ID
+    )
+
+    secret_string = response.get("SecretString")
+
+    if not secret_string:
+        raise RuntimeError("Supabase secret value is missing")
+
+    secret_payload = json.loads(secret_string)
+
+    service_role_key = secret_payload.get(
+        "SUPABASE_SERVICE_ROLE_KEY"
+    )
+
+    if not service_role_key:
+        raise RuntimeError(
+            "SUPABASE_SERVICE_ROLE_KEY is missing from secret"
+        )
+
+    _supabase_service_role_key = service_role_key
+
+    return _supabase_service_role_key
 def supabase_insert(table_name, payload):
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("Supabase configuration is missing")
+    if not SUPABASE_URL:
+        raise RuntimeError("Supabase URL is missing")
 
+    service_role_key = get_supabase_service_role_key()
     url = f"{SUPABASE_URL}/rest/v1/{table_name}"
 
     request = urllib.request.Request(
@@ -120,8 +164,8 @@ def supabase_insert(table_name, payload):
         method="POST"
     )
 
-    request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
-    request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
+    request.add_header("apikey", service_role_key)
+    request.add_header("Authorization", f"Bearer {service_role_key}")
     request.add_header("Content-Type", "application/json")
     request.add_header("Prefer", "return=minimal")
 
