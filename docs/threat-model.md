@@ -2,149 +2,117 @@
 
 ## 1. Purpose
 
-This document identifies cybersecurity threats affecting the AWS-based AI document-processing prototype.
+This document identifies cybersecurity threats affecting the AWS-based AI document-processing prototype and records the control state after Stage 8.
 
-The threat model covers the complete document lifecycle:
+Lifecycle scope:
 
 ```text
 Upload
 → Object storage
 → Pre-processing
 → Extraction
-→ Post-processing
+→ Post-processing validation
 → Result storage
 → Human review
-→ Retention and deletion
+→ Retention
+→ Secure deletion
 ```
-The analysis uses the STRIDE methodology:
-| Category               | Meaning                                                    |
-| ---------------------- | ---------------------------------------------------------- |
-| Spoofing               | Pretending to be another user, service or system           |
-| Tampering              | Unauthorised modification of data or processing messages   |
-| Repudiation            | Denying an action where sufficient evidence is unavailable |
-| Information Disclosure | Exposure of confidential or personal information           |
-| Denial of Service      | Preventing or degrading legitimate system operation        |
-| Elevation of Privilege | Obtaining permissions beyond those authorised              |
+
+STRIDE categories: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service and Elevation of Privilege.
 
 ## 2. System Scope
-
-The threat model covers:
 
 - Amazon API Gateway
 - Upload Lambda
 - Amazon S3
-- Pre-processing SQS queue and DLQ
-- Pre-processing Lambda
-- Extraction SQS queue and DLQ
-- Extraction Lambda
-- Planned Amazon Bedrock or SageMaker model
-- Supabase PostgreSQL
-- CloudWatch logs
-- Human-review workflow
-- GitHub source repository
-The frontend application and full production authentication interface are outside the implemented prototype scope.
+- Preprocessing SQS/DLQ and Lambda
+- Extraction SQS/DLQ and Lambda
+- Designed Bedrock/SageMaker provider boundary
+- Supabase PostgreSQL and RLS
+- AWS Secrets Manager
+- CloudWatch and SNS
+- Human-review backend
+- Retention Lambda
+- EventBridge Scheduler and scheduler DLQ
+- Secure-deletion Lambda
+- GitHub repository
+
+The frontend and a complete production authentication interface are outside the implemented prototype scope.
 
 ## 3. Security-Sensitive Assets
-| Asset                      | Security importance                                        |
-| -------------------------- | ---------------------------------------------------------- |
-| Receipt and invoice files  | May contain PII, financial and confidential business data  |
-| Extracted financial fields | Incorrect or altered values may affect financial reporting |
-| S3 object keys             | Identify document ownership and workflow location          |
-| Document IDs and trace IDs | Support workflow integrity and forensic traceability       |
-| Supabase service-role key  | Provides privileged database access                        |
-| Lambda execution roles     | Control access to S3, SQS, logs and model services         |
-| Pre-signed URLs            | Provide temporary document-upload authority                |
-| SQS messages               | Control asynchronous processing operations                 |
-| Model prompts and schemas  | Control model behaviour and output structure               |
-| Audit logs                 | Provide evidence for investigation and compliance          |
-| Model output               | Must not be trusted without validation                     |
+
+| Asset | Security importance |
+|---|---|
+| Receipt/invoice files | May contain PII, financial and confidential business data |
+| Extracted financial fields | Integrity affects downstream financial processing |
+| Supabase privileged credential | Provides elevated backend database authority |
+| Tenant identity claims | Determine company-level database access |
+| Lambda execution roles | Authorise S3/SQS/Secrets Manager/Lambda operations |
+| Pre-signed URLs | Provide temporary upload authority |
+| SQS messages | Drive asynchronous processing |
+| Model prompt/schema/output | Affect AI-processing integrity |
+| Audit/trace records | Support investigation and lifecycle evidence |
+| Retention/deletion records | Demonstrate lifecycle enforcement |
 
 ## 4. Trust Boundaries
-TB-01: User to API Gateway
-Untrusted user-supplied document metadata enters the AWS backend.
 
-TB-02: API Gateway to Upload Lambda
-API Gateway invokes trusted backend code, but authentication and request validation must be enforced.
-
-TB-03: Client to S3 pre-signed upload
-A temporary URL permits direct upload to a restricted S3 object key.
-
-TB-04: S3 to SQS
-An S3 object-created event generates an asynchronous processing message.
-
-TB-05: SQS to Lambda
-Queue messages cross into trusted preprocessing and extraction functions.
-
-TB-06: AWS Lambda to Supabase
-AWS functions send metadata, status and audit information to an external managed database.
-
-TB-07: Extraction Lambda to AI model
-The uploaded document is sent to a model service and an untrusted model response is returned.
-
-TB-08: Automated processing to human review
-Low-confidence or invalid output is transferred to a human-review workflow.
+- **TB-01 User → API Gateway:** untrusted caller metadata enters the backend.
+- **TB-02 API Gateway → Upload Lambda:** request crosses into trusted serverless code; production identity verification remains incomplete.
+- **TB-03 Client → S3 pre-signed PUT:** temporary upload authority permits writing one controlled object.
+- **TB-04 S3 → SQS:** storage event becomes an asynchronous processing message.
+- **TB-05 SQS → Lambda:** queue content crosses into trusted preprocessing/extraction code.
+- **TB-06 AWS Lambda → Secrets Manager:** backend function obtains privileged database credential.
+- **TB-07 AWS Lambda → Supabase:** trusted backend writes operational/business records with elevated service credentials.
+- **TB-08 Authenticated tenant → Supabase RLS:** JWT company claim determines tenant-visible rows.
+- **TB-09 Extraction adapter → AI model:** untrusted document content and untrusted model output cross the model boundary.
+- **TB-10 Automated processing → HITL:** unsafe/uncertain output is escalated for review.
+- **TB-11 Scheduler → Retention → Deletion:** automated lifecycle decision crosses into destructive processing.
 
 ## 5. Threat Catalogue
-| ID   | STRIDE                                          | Component           | Threat scenario                                                                                      | Potential impact                                                        | Existing controls                                                               | Remaining gap                                                                           |
-| ---- | ----------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| T-01 | Spoofing                                        | API Gateway         | An unauthenticated attacker requests upload URLs while pretending to be a legitimate user or company | Unauthorised uploads, resource consumption and false ownership metadata | UUID document identifiers, metadata validation and structured object keys       | Production authentication and verified company/user identity are not implemented        |
-| T-02 | Spoofing / Tampering                            | Pre-signed URL      | A leaked URL is used by another party or reused before expiry                                        | Unauthorised object upload or replacement                               | Short expiry, fixed bucket/key and content type                                 | No one-time-use enforcement or authenticated uploader binding                           |
-| T-03 | Tampering                                       | File upload         | A malicious file is disguised as a PDF, JPEG or PNG using a misleading extension or content type     | Malware storage, parser exploitation or invalid model processing        | Extension, MIME type and size validation                                        | File-signature validation and malware scanning remain pending                           |
-| T-04 | Denial of Service                               | API and S3          | An attacker generates many upload requests or large uploads                                          | Cost increase, Lambda throttling and processing backlog                 | 10 MB limit and asynchronous queues                                             | API throttling, quotas and WAF controls remain pending                                  |
-| T-05 | Information Disclosure                          | S3                  | Bucket policy or access settings accidentally expose uploaded documents                              | PII and financial-data breach                                           | Block Public Access, private bucket and server-side encryption                  | Automated configuration-compliance checking is not implemented                          |
-| T-06 | Elevation of Privilege                          | IAM                 | A Lambda role receives excessive permissions or is compromised                                       | Access to unrelated buckets, queues, logs or models                     | Separate execution roles and restricted IAM templates                           | Formal periodic IAM review is not automated                                             |
-| T-07 | Tampering / Spoofing                            | SQS                 | A forged, altered or replayed queue message references another document                              | Incorrect processing, duplicate results or cross-document access        | Restricted SQS permissions, structured message fields and document IDs          | Message schema validation, replay detection and idempotency controls need strengthening |
-| T-08 | Repudiation                                     | Processing pipeline | A processing operation cannot be reliably linked to its initiating event                             | Weak forensic evidence and inability to investigate failures            | Trace IDs, processing-run records, audit logs and CloudWatch                    | Authentication events and end-user identity verification remain incomplete              |
-| T-09 | Information Disclosure                          | CloudWatch          | Document text, PII, credentials or pre-signed URLs are written to logs                               | Confidential information exposure                                       | Structured safe logs and no intentional document-body logging                   | Automated sensitive-log scanning is not implemented                                     |
-| T-10 | Elevation of Privilege / Information Disclosure | Supabase            | The Supabase service-role key is exposed or misused                                                  | Full database read/write access and tenant-data exposure                | Environment variables and exclusion of secrets from GitHub                      | Secrets Manager integration and key rotation remain pending                             |
-| T-11 | Information Disclosure                          | Database            | Missing or incorrect row-level policies expose one company’s records to another                      | Cross-tenant data breach                                                | Company and user identifiers stored; RLS enabled in schema                      | Complete production RLS policies are not demonstrated                                   |
-| T-12 | Tampering                                       | AI model            | A document contains prompt-injection text instructing the model to ignore extraction rules           | Manipulated output, leaked instructions or false data                   | Fixed server-side prompt, untrusted-document instruction and strict JSON schema | Real-model adversarial testing is deferred until credentials are available              |
-| T-13 | Tampering / Repudiation                         | AI output           | The model hallucinates supplier, date, currency or total values                                      | Incorrect financial records and unreliable automated decisions          | Planned schema validation, uncertain-fields list and HITL routing               | Post-processing validation must be implemented                                          |
-| T-14 | Tampering                                       | Confidence handling | Low-confidence or invalid output is incorrectly accepted as completed                                | Incorrect information bypasses human review                             | `needs_human_review` field and status support                                   | Deterministic low-confidence testing is still required                                  |
-| T-15 | Denial of Service                               | SQS and Lambda      | Repeated failures create retries, queue backlog or poison messages                                   | Processing delay and resource consumption                               | DLQs and retry limits                                                           | DLQ alarms and operational replay procedure remain pending                              |
-| T-16 | Information Disclosure / Repudiation            | Data lifecycle      | Documents remain stored longer than required or cannot be deleted on request                         | GDPR and data-retention non-compliance                                  | Lifecycle statuses include deletion planning                                    | Retention rules and controlled deletion workflow remain pending                         |
-| T-17 | Tampering                                       | GitHub              | Secrets, account identifiers or sensitive screenshots are committed publicly                         | Credential compromise and infrastructure exposure                       | `.gitignore`, placeholders and sanitised evidence policy                        | Repository scanning should be conducted before final submission                         |
-| T-18 | Denial of Service / Repudiation                 | Monitoring          | Failures occur without alarms or timely investigation                                                | Extended outage and incomplete incident response                        | CloudWatch logs and Supabase audit records                                      | CloudWatch alarms and incident runbook remain pending                                   |
 
-## The following threats require the highest priority before the final evaluation:
+| ID | STRIDE | Threat scenario | Implemented controls | Remaining gap |
+|---|---|---|---|---|
+| T-01 | Spoofing | Caller requests upload authority while claiming another identity/company | Validation, structured IDs, private upload flow | Production API authentication and verified JWT-derived identity |
+| T-02 | Spoofing/Tampering | Leaked pre-signed URL is reused before expiry | Short expiry, fixed key/content type | No one-time-use/session binding |
+| T-03 | Tampering | Disguised/malicious file reaches processing | Extension/MIME/size validation and post-upload content-type check | File-signature verification and malware scanning |
+| T-04 | Denial of Service | Excessive upload-initiation traffic causes cost/backlog | 10 MB limit, SQS buffering, stage/method throttling, 4XX monitoring | WAF/stronger quotas/authenticated rate policy |
+| T-05 | Information Disclosure | S3 is accidentally exposed | Block Public Access, private storage, encryption, scoped IAM | Automated configuration-compliance checking |
+| T-06 | Elevation of Privilege | Lambda role is overprivileged/compromised | Separate roles, resource-scoped IAM, destructive-role isolation, exact-secret access | Automated/periodic IAM review |
+| T-07 | Tampering/Spoofing | Queue message is forged/replayed | Restricted queue permissions, structured IDs, retry/DLQ | Stronger schema validation, replay detection and idempotency |
+| T-08 | Repudiation | Processing action cannot be linked to evidence | Trace IDs, audit records, processing runs, CloudWatch | End-user authentication event evidence incomplete |
+| T-09 | Information Disclosure | Logs expose PII/secrets/temporary URLs | Structured logging, no document body/secret/pre-signed URL by design | Automated sensitive-log scanning |
+| T-10 | Elevation of Privilege/Disclosure | Supabase service credential is exposed/misused | Secrets Manager, exact-secret IAM, no plaintext env credential | Manual rotation; privileged backend credential remains high impact |
+| T-11 | Information Disclosure | RLS exposes another company’s data | Tenant RLS, least-privilege grants, anonymous revoke, restrictive document policy; cross-tenant retest passed | Complete production authentication/token governance |
+| T-12 | Tampering | Document prompt injection manipulates model behaviour | Fixed prompt/schema design, suspicious-pattern detection, high-priority HITL | Real-model adversarial testing and broader prompt-injection defence |
+| T-13 | Tampering/Repudiation | Hallucinated/malformed financial output is accepted | Schema/field/date/currency/financial checks, malformed-output handling, HITL | Real-model validation still deferred |
+| T-14 | Tampering | Low-confidence output bypasses review | Confidence thresholds, uncertainty handling, deterministic tests, review-task creation | Real-model threshold calibration |
+| T-15 | Denial of Service | Poison/repeatedly failing messages cause backlog | DLQs, retry limits, alarms, SNS, retry-exhaustion test, runbook | Automated/idempotent replay |
+| T-16 | Disclosure/Repudiation | Data remains beyond policy or cannot be deleted | Retention metadata, scheduler, dedicated deletion, verification, cleanup, audit minimisation, tombstone | Legal policy selection and S3 version-aware deletion |
+| T-17 | Tampering/Disclosure | Sensitive material is committed publicly | `.gitignore`, placeholders, sanitised evidence policy, repository review | Historical secret scanning remains advisable |
+| T-18 | Denial of Service/Repudiation | Failures occur without timely detection/response | Lambda/DLQ/API/retention alarms, SNS and incident runbook | Production incident escalation/SIEM |
+| T-19 | Elevation of Privilege | Backend service credential bypasses tenant RLS if compromised | Server-side-only Secrets Manager storage and scoped retrieval | Architectural reliance on privileged backend credential |
+| T-20 | Tampering | Incorrect automated retention/deletion decision destroys valid data | `retention_enforcement_enabled`, future-date rejection, delegated deletion | Formal legal-policy governance and stronger change control |
 
-1. T-01 — Missing production authentication.
-2. T-03 — Malicious or disguised uploaded files.
-3. T-04 — API abuse and cost-based denial of service.
-4. T-10 — Supabase service-role credential compromise.
-5. T-11 — Incomplete tenant isolation.
-6. T-12 — Document prompt injection.
-7. T-13 — Hallucinated or invalid financial output.
-8. T-16 — Missing retention and deletion enforcement.
+## 6. Key Evaluation Findings
 
-## 7. Threat Treatment Strategy
-| Treatment | Meaning in this project                                     |
-| --------- | ----------------------------------------------------------- |
-| Mitigate  | Implement a control reducing likelihood or impact           |
-| Avoid     | Disable or exclude an unsafe feature                        |
-| Transfer  | Rely on contractual or managed-service responsibility       |
-| Accept    | Document residual risk where implementation is not feasible |
-Advanced controls not completed within the prototype will be explicitly recorded as accepted residual risks or future work.
+Two findings are particularly important for the final paper:
 
-## 8. Relationship to the Security Framework
+1. **Tenant-isolation failure and remediation:** the first cross-tenant test exposed a row despite an existing tenant policy. A mandatory restrictive policy was added and the same test then passed with zero visible cross-tenant rows.
+2. **Alerting configuration failure and remediation:** a controlled alarm test exposed an SNS/KMS authorisation issue. The prototype notification configuration was corrected and notification delivery was retested.
 
-The threat model supports:
-- Govern: risk ownership, policies and priorities
-- Identify: assets, threats, dependencies and vulnerabilities
-- Protect: validation, encryption, IAM and access control
-- Detect: audit logs, CloudWatch and anomaly monitoring
-- Respond: DLQs, failed statuses and incident procedures
-- Recover: replay, reprocessing and controlled restoration
+These findings demonstrate why security controls were evaluated through failure/adversarial scenarios rather than judged only by configuration presence.
 
-## 9. Current Limitations
+## 7. Highest-Priority Residual Threats
 
-The threat model describes both implemented and planned controls.
-It does not claim that the prototype currently provides:
-- Complete user authentication
-- Complete tenant isolation
-- Malware scanning
-- Real-model adversarial testing
-- Production incident response
-- Automated GDPR compliance
-- A complete HITL interface
-  
+- T-01 production identity spoofing.
+- T-03 disguised/malicious document content.
+- T-07 message replay/idempotency.
+- T-10/T-19 privileged backend credential compromise.
+- T-12/T-13 real-model manipulation and output-integrity uncertainty.
+- T-16/T-20 lifecycle policy/governance limitations.
+
+## 8. Relationship to NIST CSF 2.0
+
+The threat model supplies evidence for GOVERN and IDENTIFY and drives control/evaluation decisions across PROTECT, DETECT, RESPOND and RECOVER.
+
+Stage 9 will map these threats and controls into Current/Target Profiles and residual-risk priorities.
