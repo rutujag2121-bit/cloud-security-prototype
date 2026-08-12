@@ -1,4 +1,5 @@
 # Progress Log
+**Reading note:** This file is intentionally chronological. Earlier entries contain point-in-time "current status" and "next steps" statements that were correct when written and are retained as development evidence. The latest stage entry and the root README represent the current project status.
 
 ## Stage 0: AWS API Gateway and Lambda Prototype
 
