@@ -14,9 +14,12 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 lambda_client = boto3.client("lambda")
+secretsmanager = boto3.client("secretsmanager")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_SECRET_ID = os.environ["SUPABASE_SECRET_ID"]
+
+_supabase_service_role_key = None
 DELETION_FUNCTION_NAME = os.environ["DELETION_FUNCTION_NAME"]
 MAX_DOCUMENTS_PER_RUN = max(
     1,
@@ -31,15 +34,45 @@ def safe_log(level, payload):
 def document_fingerprint(document_id):
     return hashlib.sha256(document_id.encode("utf-8")).hexdigest()
 
+def get_supabase_service_role_key():
+    global _supabase_service_role_key
 
+    if _supabase_service_role_key:
+        return _supabase_service_role_key
+
+    response = secretsmanager.get_secret_value(
+        SecretId=SUPABASE_SECRET_ID
+    )
+
+    secret_string = response.get("SecretString")
+
+    if not secret_string:
+        raise RuntimeError("Supabase secret value is missing")
+
+    secret_payload = json.loads(secret_string)
+
+    service_role_key = secret_payload.get(
+        "SUPABASE_SERVICE_ROLE_KEY"
+    )
+
+    if not service_role_key:
+        raise RuntimeError(
+            "SUPABASE_SERVICE_ROLE_KEY is missing from secret"
+        )
+
+    _supabase_service_role_key = service_role_key
+
+    return _supabase_service_role_key
 def supabase_get(table_name, query):
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("Supabase configuration is missing")
+    if not SUPABASE_URL:
+        raise RuntimeError("Supabase URL is missing")
+
+    service_role_key = get_supabase_service_role_key()
 
     url = f"{SUPABASE_URL}/rest/v1/{table_name}?{query}"
     request = urllib.request.Request(url=url, method="GET")
-    request.add_header("apikey", SUPABASE_SERVICE_ROLE_KEY)
-    request.add_header("Authorization", f"Bearer {SUPABASE_SERVICE_ROLE_KEY}")
+    request.add_header("apikey", service_role_key)
+    request.add_header("Authorization", f"Bearer {service_role_key}")
 
     try:
         with urllib.request.urlopen(request, timeout=10) as result:
